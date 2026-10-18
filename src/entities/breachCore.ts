@@ -34,7 +34,7 @@ export class BreachCore extends Enemy {
     }
     if (this.summonT <= 0) {
       this.summonT = rand(...this.def.rangedCooldown) / ctx.diff.aggression;
-      const alive = ctx.enemies.filter((e) => e.alive && e !== this).length;
+      const alive = ctx.enemies.filter((e) => e.alive && e !== this && Math.hypot(e.pos.x - this.pos.x, e.pos.z - this.pos.z) < 36).length;
       if (alive >= 6) return false;
       this.pulse = false;
       this.setState('attack');
