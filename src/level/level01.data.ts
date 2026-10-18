@@ -1,0 +1,330 @@
+import type { LevelData, LightDef, RGB, ThingDef } from './types';
+
+// Chapter 1 — "Hangar Seven". Original layout:
+// landing bay → service corridor → security junction (+armory) → main hangar (lift to catwalk, red key)
+// → red door → nukage processing (chainsword alcove, blue key, pinky closets, secret) → blue door → control room → transit pad.
+
+const WARM: RGB = [1, 0.84, 0.62];
+const COOL: RGB = [0.68, 0.82, 1];
+const RED: RGB = [1, 0.16, 0.08];
+const ORANGE: RGB = [1, 0.5, 0.18];
+const TOXIC: RGB = [0.35, 1, 0.3];
+
+const L = (x: number, y: number, h: number, color: RGB, intensity: number, range: number, extra: Partial<LightDef> = {}): LightDef => ({
+  x, y, h, color, intensity, range, ...extra,
+});
+
+const things: ThingDef[] = [
+  { kind: 'player', x: 7.5, y: 44.5, angle: 180 },
+
+  // Landing bay
+  { kind: 'healthSmall', x: 11.5, y: 39.5 },
+  { kind: 'bulletClip', x: 4.5, y: 45.3 },
+  { kind: 'barrel', x: 11.4, y: 45.4 },
+  { kind: 'lamp', x: 3.6, y: 38.6 },
+  { kind: 'lamp', x: 12.4, y: 38.6 },
+
+  // Security junction — first contact
+  { kind: 'zombieman', x: 10.8, y: 25.8, angle: 180 },
+  { kind: 'zombieman', x: 6.2, y: 27.8, angle: 90 },
+  { kind: 'zombieman', x: 11.5, y: 28.6, angle: 270, skill: 'h' },
+  { kind: 'healthSmall', x: 5.6, y: 25.6 },
+  { kind: 'techColumn', x: 5.5, y: 29.4 },
+
+  // Armory hall + armory
+  { kind: 'bulletClip', x: 15.5, y: 26.5 },
+  { id: 'i_shotgun', kind: 'shotgun', x: 23.5, y: 26.45 },
+  { kind: 'shells', x: 20.2, y: 29.6 },
+  { kind: 'shells', x: 26.4, y: 29.6, skill: 'en' },
+  { kind: 'healthSmall', x: 20.3, y: 23.7 },
+  { kind: 'barrel', x: 26.3, y: 27.2 },
+  { kind: 'barrel', x: 26.6, y: 28.1 },
+  { kind: 'zombieman', x: 26.2, y: 24.2, angle: 270, ambush: true },
+  { kind: 'zombieman', x: 20.2, y: 30.3, angle: 0, wave: 'armory', teleport: true, skill: 'nh' },
+  { kind: 'imp', x: 25.5, y: 30.2, angle: 270, wave: 'armory', teleport: true, skill: 'h' },
+
+  // Hangar — standing garrison
+  { kind: 'zombieman', x: 14.5, y: 15.2, angle: 180 },
+  { kind: 'zombieman', x: 27.4, y: 9.2, angle: 270 },
+  { kind: 'zombieman', x: 27.5, y: 4.9, angle: 0, ambush: true },
+  { kind: 'zombieman', x: 33.4, y: 4.7, angle: 270, skill: 'nh' },
+  { kind: 'imp', x: 32.0, y: 15.5, angle: 270 },
+  // Hangar wave (on crossing the middle)
+  { kind: 'imp', x: 5.2, y: 6.2, wave: 'hangar1', teleport: true },
+  { kind: 'imp', x: 33.0, y: 18.3, wave: 'hangar1', teleport: true },
+  { kind: 'imp', x: 20.5, y: 18.6, wave: 'hangar1', teleport: true, skill: 'nh' },
+  { kind: 'zombieman', x: 32.6, y: 8.9, wave: 'hangar1', teleport: true },
+  { kind: 'zombieman', x: 6.4, y: 17.4, wave: 'hangar1', teleport: true, skill: 'nh' },
+  // Red key grab — imps appear by the lift
+  { kind: 'imp', x: 16.4, y: 5.2, wave: 'hangarKey', teleport: true },
+  { kind: 'imp', x: 22.2, y: 7.4, wave: 'hangarKey', teleport: true, skill: 'nh' },
+  // Hangar items
+  { kind: 'shells', x: 5.3, y: 5.4 },
+  { kind: 'shellBox', x: 32.4, y: 18.4 },
+  { kind: 'healthLarge', x: 17.5, y: 18.5 },
+  { kind: 'bulletBox', x: 4.2, y: 12.3 },
+  { kind: 'healthSmall', x: 25.0, y: 8.2 },
+  { kind: 'healthSmall', x: 34.0, y: 15.0 },
+  { id: 'i_keyRed', kind: 'keyRed', x: 33.9, y: 4.6 },
+  { kind: 'barrel', x: 19.2, y: 14.3 },
+  { kind: 'barrel', x: 19.9, y: 15.1 },
+  { kind: 'barrel', x: 30.3, y: 16.0 },
+  { kind: 'barrel', x: 6.2, y: 8.3 },
+  { kind: 'barrel', x: 24.0, y: 4.6 },
+  { kind: 'lamp', x: 3.6, y: 4.6 },
+  { kind: 'lamp', x: 34.4, y: 19.4 },
+
+  // East corridor + chainsword alcove
+  { kind: 'healthSmall', x: 37.2, y: 11.5 },
+  { kind: 'bulletClip', x: 41.2, y: 12.6 },
+  { id: 'i_chainsword', kind: 'chainsword', x: 40.0, y: 14.45 },
+
+  // Nukage processing
+  { kind: 'zombieman', x: 49.9, y: 7.6, angle: 0 },
+  { kind: 'imp', x: 45.2, y: 6.0, angle: 90 },
+  { kind: 'zombieman', x: 55.6, y: 13.6, angle: 270 },
+  { kind: 'zombieman', x: 53.5, y: 20.8, angle: 180, skill: 'nh' },
+  { kind: 'shells', x: 45.6, y: 6.6 },
+  { kind: 'healthLarge', x: 44.6, y: 7.2 },
+  { kind: 'bulletClip', x: 50.0, y: 18.0 },
+  { kind: 'barrel', x: 52.6, y: 10.6 },
+  { id: 'i_keyBlue', kind: 'keyBlue', x: 54.5, y: 12.5 },
+  { kind: 'pinky', x: 61.9, y: 7.9, angle: 270, wave: 'nukAmbush' },
+  { kind: 'pinky', x: 61.9, y: 15.9, angle: 270, wave: 'nukAmbush' },
+  { kind: 'imp', x: 51.6, y: 19.3, wave: 'nukAmbush', teleport: true, skill: 'nh' },
+  { kind: 'imp', x: 47.6, y: 12.2, wave: 'nukAmbush', teleport: true, skill: 'h' },
+  // Secret stash
+  { kind: 'armor', x: 56.5, y: 24.6 },
+  { kind: 'shellBox', x: 55.5, y: 23.5 },
+  { kind: 'healthSmall', x: 57.4, y: 25.4 },
+
+  // Exit hall + control room
+  { kind: 'healthSmall', x: 50.0, y: 24.2 },
+  { kind: 'zombieman', x: 46.0, y: 34.0, angle: 90 },
+  { kind: 'healthLarge', x: 44.8, y: 27.6 },
+  { kind: 'shells', x: 58.5, y: 36.5 },
+  { kind: 'bulletBox', x: 45.4, y: 36.6 },
+  { kind: 'barrel', x: 55.2, y: 29.0 },
+  { kind: 'barrel', x: 48.3, y: 36.2 },
+  { kind: 'barrel', x: 56.2, y: 35.6 },
+  { kind: 'pinky', x: 52.0, y: 36.4, wave: 'final', teleport: true },
+  { kind: 'imp', x: 47.4, y: 28.4, wave: 'final', teleport: true },
+  { kind: 'imp', x: 58.4, y: 30.2, wave: 'final', teleport: true },
+  { kind: 'imp', x: 57.4, y: 36.8, wave: 'final', teleport: true, skill: 'nh' },
+  { kind: 'zombieman', x: 45.2, y: 36.4, wave: 'final', teleport: true },
+  { kind: 'zombieman', x: 59.1, y: 27.6, wave: 'final', teleport: true, skill: 'nh' },
+  { kind: 'pinky', x: 47.2, y: 32.4, wave: 'final', teleport: true, skill: 'h' },
+  { kind: 'lamp', x: 44.4, y: 37.5 },
+  { kind: 'lamp', x: 59.5, y: 37.5 },
+  { kind: 'techColumn', x: 61.3, y: 30.3 },
+  { kind: 'techColumn', x: 61.3, y: 33.7 },
+];
+
+export const LEVEL01: LevelData = {
+  id: 'level01',
+  width: 68,
+  height: 49,
+  defaultWall: 'metalPanel',
+  parTime: 600,
+  zones: [
+    { id: 'start', rect: [3, 38, 10, 9], floor: 0, ceil: 4.5, floorTex: 'concrete', ceilTex: 'ceilPanel', wallTex: 'metalPanel', ambient: [0.16, 0.15, 0.15] },
+    { id: 'corA', rect: [7, 30, 2, 7], floor: 0, ceil: 3.5, floorTex: 'floorGrate', ceilTex: 'ceilPanel', wallTex: 'techWall', ambient: [0.1, 0.05, 0.05] },
+    { id: 'junction', rect: [5, 25, 8, 5], floor: 0, ceil: 4, floorTex: 'hangarFloor', ceilTex: 'ceilPanel', wallTex: 'techWall', ambient: [0.1, 0.1, 0.13] },
+    { id: 'armoryHall', rect: [13, 26, 5, 2], floor: 0, ceil: 3.5, floorTex: 'floorGrate', ceilTex: 'ceilPanel', wallTex: 'metalPanel', ambient: [0.1, 0.08, 0.07] },
+    { id: 'armory', rect: [19, 23, 9, 8], floor: 0, ceil: 4.5, floorTex: 'concrete', ceilTex: 'ceilPanel', wallTex: 'metalPanel', ambient: [0.14, 0.13, 0.12] },
+    { id: 'hangarHall', rect: [8, 21, 2, 4], floor: 0, ceil: 3.5, floorTex: 'floorGrate', ceilTex: 'ceilPanel', wallTex: 'techWall', ambient: [0.1, 0.05, 0.05] },
+    { id: 'hangar', rect: [3, 4, 32, 16], floor: 0, ceil: 10, floorTex: 'hangarFloor', ceilTex: 'ceilGrid', wallTex: 'metalPanel', stepTex: 'hazard', ambient: [0.08, 0.085, 0.1] },
+    { id: 'catwalk', rect: [20, 4, 15, 2], floor: 3.5, ceil: 10, floorTex: 'floorGrate', ceilTex: 'ceilGrid', wallTex: 'metalPanel', stepTex: 'hazard', ambient: [0.1, 0.1, 0.12] },
+    { id: 'corB', rect: [36, 11, 6, 2], floor: 0, ceil: 3.5, floorTex: 'floorGrate', ceilTex: 'ceilPanel', wallTex: 'techWall', ambient: [0.1, 0.06, 0.05] },
+    { id: 'alcove', rect: [39, 13, 2, 2], floor: 0, ceil: 3, floorTex: 'concrete', ceilTex: 'ceilPanel', wallTex: 'pipeWall', ambient: [0.1, 0.09, 0.08] },
+    { id: 'nukage', rect: [43, 4, 17, 18], floor: -0.55, ceil: 7, floorTex: 'nukage', ceilTex: 'ceilGrid', wallTex: 'pipeWall', ambient: [0.05, 0.11, 0.05], nukage: true },
+    { id: 'walkEntry', rect: [43, 11, 6, 2], floor: 0, ceil: 7, floorTex: 'floorGrate', ceilTex: 'ceilGrid', wallTex: 'pipeWall', stepTex: 'hazard', ambient: [0.06, 0.11, 0.06] },
+    { id: 'walkSpine', rect: [49, 6, 2, 16], floor: 0, ceil: 7, floorTex: 'floorGrate', ceilTex: 'ceilGrid', wallTex: 'pipeWall', stepTex: 'hazard', ambient: [0.06, 0.11, 0.06] },
+    { id: 'ledgeLink', rect: [48, 6, 1, 1], floor: 0, ceil: 7, floorTex: 'floorGrate', ceilTex: 'ceilGrid', wallTex: 'pipeWall', stepTex: 'hazard', ambient: [0.06, 0.11, 0.06] },
+    { id: 'ledge', rect: [44, 5, 4, 3], floor: 0, ceil: 7, floorTex: 'concrete', ceilTex: 'ceilGrid', wallTex: 'pipeWall', stepTex: 'hazard', ambient: [0.06, 0.11, 0.06] },
+    { id: 'bridge', rect: [51, 12, 1, 1], floor: 0, ceil: 7, floorTex: 'floorGrate', ceilTex: 'ceilGrid', wallTex: 'pipeWall', stepTex: 'hazard', ambient: [0.06, 0.11, 0.06] },
+    { id: 'platform', rect: [52, 10, 5, 5], floor: 0.4, ceil: 7, floorTex: 'hangarFloor', ceilTex: 'ceilGrid', wallTex: 'pipeWall', stepTex: 'hazard', ambient: [0.07, 0.11, 0.08] },
+    { id: 'walkSouth', rect: [51, 20, 6, 2], floor: 0, ceil: 7, floorTex: 'floorGrate', ceilTex: 'ceilGrid', wallTex: 'pipeWall', stepTex: 'hazard', ambient: [0.06, 0.11, 0.06] },
+    { id: 'closetN', rect: [61, 7, 2, 2], floor: 0, ceil: 4, floorTex: 'concrete', ceilTex: 'ceilPanel', wallTex: 'rust', ambient: [0.08, 0.03, 0.03] },
+    { id: 'closetS', rect: [61, 15, 2, 2], floor: 0, ceil: 4, floorTex: 'concrete', ceilTex: 'ceilPanel', wallTex: 'rust', ambient: [0.08, 0.03, 0.03] },
+    { id: 'secret', rect: [55, 23, 3, 3], floor: 0, ceil: 3, floorTex: 'concreteBlood', ceilTex: 'ceilPanel', wallTex: 'bloodWall', ambient: [0.09, 0.05, 0.04] },
+    { id: 'exitHall', rect: [49, 23, 2, 4], floor: 0, ceil: 3.5, floorTex: 'floorGrate', ceilTex: 'ceilPanel', wallTex: 'techWall', ambient: [0.1, 0.05, 0.05] },
+    { id: 'control', rect: [44, 27, 16, 11], floor: 0, ceil: 6, floorTex: 'hangarFloor', ceilTex: 'ceilGrid', wallTex: 'techWall', stepTex: 'hazard', ambient: [0.1, 0.07, 0.07] },
+    { id: 'dais', rect: [49, 30, 6, 5], floor: 0.5, ceil: 6, floorTex: 'concrete', ceilTex: 'ceilGrid', wallTex: 'techWall', stepTex: 'hazard', ambient: [0.1, 0.07, 0.07] },
+    { id: 'transit', rect: [61, 30, 4, 4], floor: 0, ceil: 4, floorTex: 'floorGrate', ceilTex: 'ceilPanel', wallTex: 'techWall', ambient: [0.08, 0.12, 0.1] },
+    { id: 'pad', rect: [62, 31, 2, 2], floor: 0.15, ceil: 4, floorTex: 'exitPad', ceilTex: 'lightPanel', wallTex: 'techWall', stepTex: 'hazard', ambient: [0.2, 0.4, 0.3] },
+  ],
+  solids: [
+    { rect: [12, 7, 1, 1], tex: 'hazard' },
+    { rect: [12, 17, 1, 1], tex: 'hazard' },
+    { rect: [26, 17, 1, 1], tex: 'hazard' },
+    { rect: [46, 9, 1, 1], tex: 'pipeWall' },
+    { rect: [57, 7, 1, 1], tex: 'pipeWall' },
+    { rect: [57, 17, 1, 1], tex: 'pipeWall' },
+    { rect: [46, 17, 1, 1], tex: 'pipeWall' },
+  ],
+  wallPaint: [
+    { rect: [8, 3, 10, 1], tex: 'bigDoor' },
+    { rect: [5, 24, 3, 1], tex: 'computer' },
+    { rect: [10, 24, 3, 1], tex: 'computer' },
+    { rect: [4, 25, 1, 2], tex: 'computer' },
+    { rect: [34, 10, 1, 1], tex: 'hazard' },
+    { rect: [34, 13, 1, 1], tex: 'hazard' },
+    { rect: [35, 10, 1, 1], tex: 'hazard' },
+    { rect: [35, 13, 1, 1], tex: 'hazard' },
+    { rect: [48, 22, 1, 1], tex: 'hazard' },
+    { rect: [51, 22, 1, 1], tex: 'hazard' },
+    { rect: [44, 26, 16, 1], tex: 'computer' },
+    { rect: [60, 30, 1, 1], tex: 'hazard' },
+    { rect: [60, 33, 1, 1], tex: 'hazard' },
+    { rect: [2, 41, 1, 3], tex: 'lightPanel' },
+    { rect: [19, 22, 9, 1], tex: 'rust' },
+    { rect: [35, 4, 1, 1], tex: 'bloodWall' },
+    { rect: [55, 22, 1, 1], tex: 'bloodWall' },
+  ],
+  doors: [
+    { id: 'd_start', rect: [7, 37, 2, 1], type: 'normal' },
+    { id: 'd_armory', rect: [18, 26, 1, 2], type: 'normal' },
+    { id: 'd_hangar', rect: [8, 20, 2, 1], type: 'normal' },
+    { id: 'd_red', rect: [35, 11, 1, 2], type: 'red' },
+    { id: 'd_nukage', rect: [42, 11, 1, 2], type: 'normal' },
+    { id: 'd_closet1', rect: [60, 7, 1, 2], type: 'closet', ceil: 4 },
+    { id: 'd_closet2', rect: [60, 15, 1, 2], type: 'closet', ceil: 4 },
+    { id: 'd_secret', rect: [56, 22, 1, 1], type: 'secret', ceil: 3 },
+    { id: 'd_blue', rect: [49, 22, 2, 1], type: 'blue' },
+    { id: 'd_exit', rect: [60, 31, 1, 2], type: 'locked' },
+  ],
+  lifts: [{ id: 'lift1', rect: [18, 4, 2, 2], low: 0, high: 3.5 }],
+  boxes: [
+    // landing bay cargo
+    { rect: [3.2, 39, 1, 1], y1: 1.4, tex: 'crate' },
+    { rect: [4.2, 39, 1, 1], y1: 1.4, tex: 'crate' },
+    { rect: [3.2, 39, 1, 1], y0: 1.4, y1: 2.8, tex: 'crate' },
+    { rect: [10.6, 42, 1.4, 1.4], y1: 1.6, tex: 'crate' },
+    { rect: [9.2, 45.4, 1.2, 1.2], y1: 1.2, tex: 'crate' },
+    { rect: [5, 46, 4, 0.6], y1: 1.0, tex: 'computer', topTex: 'metalPanel' },
+    // junction desk
+    { rect: [8.6, 26.6, 2, 0.7], y1: 1.0, tex: 'metalPanel', topTex: 'computer' },
+    // armory racks and table
+    { rect: [19, 23, 3, 0.5], y1: 2.3, tex: 'rust' },
+    { rect: [24, 23, 2, 0.5], y1: 2.3, tex: 'rust' },
+    { rect: [22.5, 26.3, 2.2, 1.1], y1: 0.95, tex: 'metalPanel', topTex: 'crate' },
+    { rect: [26.8, 29.5, 1.2, 1.5], y1: 1.4, tex: 'crate' },
+    // hangar ship A
+    { rect: [8, 9, 8, 4], y1: 3.0, tex: 'shipHull' },
+    { rect: [16, 9.9, 1.6, 2.2], y0: 0.7, y1: 2.6, tex: 'shipWindow', topTex: 'shipHull' },
+    { rect: [6.6, 9.4, 1.4, 1.2], y0: 0.5, y1: 2.4, tex: 'metalPanel' },
+    { rect: [6.6, 11.4, 1.4, 1.2], y0: 0.5, y1: 2.4, tex: 'metalPanel' },
+    { rect: [9.2, 7.4, 4, 1.6], y0: 1.1, y1: 1.6, tex: 'shipHull' },
+    { rect: [9.2, 13, 4, 1.6], y0: 1.1, y1: 1.6, tex: 'shipHull' },
+    // hangar ship B
+    { rect: [22, 12, 8, 4], y1: 3.2, tex: 'shipHull' },
+    { rect: [20.4, 12.9, 1.6, 2.2], y0: 0.7, y1: 2.7, tex: 'shipWindow', topTex: 'shipHull' },
+    { rect: [30, 12.4, 1.4, 1.2], y0: 0.5, y1: 2.4, tex: 'metalPanel' },
+    { rect: [30, 14.4, 1.4, 1.2], y0: 0.5, y1: 2.4, tex: 'metalPanel' },
+    { rect: [24, 10.4, 4, 1.6], y0: 1.2, y1: 1.7, tex: 'shipHull' },
+    { rect: [24, 16, 4, 1.6], y0: 1.2, y1: 1.7, tex: 'shipHull' },
+    // hangar crates
+    { rect: [4, 15, 1, 1], y1: 1.4, tex: 'crate' },
+    { rect: [5, 15, 1, 1], y1: 1.4, tex: 'crate' },
+    { rect: [4, 16, 1, 1], y1: 1.4, tex: 'crate' },
+    { rect: [4, 15, 1, 1], y0: 1.4, y1: 2.8, tex: 'crate' },
+    { rect: [30, 6.2, 1, 1], y1: 1.4, tex: 'crate' },
+    { rect: [31, 6.2, 1, 1], y1: 1.4, tex: 'crate' },
+    { rect: [30.5, 7.2, 1, 1], y1: 1.4, tex: 'crate' },
+    { rect: [17, 15.8, 1.2, 1.2], y1: 1.6, tex: 'crate' },
+    { rect: [27.6, 18.2, 1.4, 1.4], y1: 1.6, tex: 'crate' },
+    { rect: [14, 4.2, 1.2, 1.2], y1: 1.2, tex: 'crate' },
+    // chainsword pedestal
+    { rect: [39.5, 14.15, 1.0, 0.6], y1: 0.5, tex: 'metalPanel', topTex: 'hazard' },
+    // blue key pedestal
+    { rect: [54.2, 12.2, 0.6, 0.6], y0: 0.4, y1: 0.9, tex: 'computer', topTex: 'metalPanel' },
+    // control room consoles and cover
+    { rect: [50.2, 30.4, 1.2, 0.8], y0: 0.5, y1: 1.6, tex: 'computer', topTex: 'metalPanel' },
+    { rect: [52.6, 33.6, 1.2, 0.8], y0: 0.5, y1: 1.6, tex: 'computer', topTex: 'metalPanel' },
+    { rect: [45, 29.4, 1.2, 1.2], y1: 1.4, tex: 'crate' },
+    { rect: [57.6, 34.4, 1.2, 1.2], y1: 1.4, tex: 'crate' },
+    { rect: [46.4, 34.8, 1.2, 1.2], y1: 1.4, tex: 'crate' },
+    { rect: [57, 28.2, 1.2, 1.2], y1: 1.4, tex: 'crate' },
+  ],
+  lights: [
+    // landing bay
+    L(5, 40.5, 4.2, WARM, 1.3, 9, { fixture: true }),
+    L(10, 44.5, 4.2, WARM, 1.2, 9, { fixture: true }),
+    L(8, 38.4, 3.0, RED, 1.3, 7, { mode: 'alarm' }),
+    // service corridor
+    L(8, 33.5, 3.3, RED, 1.4, 8, { mode: 'flicker', fixture: true }),
+    // junction
+    L(8.5, 27.5, 3.8, COOL, 1.2, 9, { fixture: true }),
+    L(6.5, 25.4, 1.6, [0.3, 1, 0.55], 0.6, 4.5),
+    L(11.5, 25.4, 1.6, [0.3, 1, 0.55], 0.6, 4.5),
+    // armory
+    L(15.5, 27, 3.3, ORANGE, 1.0, 6, { mode: 'flicker', fixture: true }),
+    L(21.5, 25, 4.3, WARM, 1.4, 10, { fixture: true }),
+    L(25.5, 29, 4.3, WARM, 1.3, 10, { fixture: true }),
+    // hangar hall
+    L(9, 22.5, 3.3, RED, 1.3, 7, { mode: 'alarm' }),
+    // hangar
+    L(8, 6.5, 9.6, COOL, 2.3, 22, { shaft: true, fixture: true }),
+    L(19.5, 9, 9.6, COOL, 2.0, 22, { shaft: true, fixture: true }),
+    L(31, 10, 9.6, COOL, 2.0, 22, { shaft: true, fixture: true }),
+    L(14, 16.5, 9.6, COOL, 2.0, 22, { shaft: true, fixture: true }),
+    L(28, 17, 9.6, COOL, 2.0, 22, { shaft: true, fixture: true }),
+    L(4.5, 18.5, 3.0, ORANGE, 1.3, 9, { mode: 'alarm' }),
+    L(33.5, 5, 6.0, RED, 1.2, 9, { mode: 'flicker' }),
+    L(34, 12, 3.0, RED, 1.4, 8, { mode: 'pulse' }),
+    L(18.5, 5, 6, ORANGE, 0.9, 7, { fixture: true }),
+    // east corridor + alcove
+    L(38, 12, 3.3, ORANGE, 1.2, 7, { mode: 'flicker', fixture: true }),
+    L(40, 14.5, 2.8, [1, 0.95, 0.85], 1.2, 5),
+    // nukage processing
+    L(46, 8, 0.4, TOXIC, 1.1, 10, { mode: 'pulse' }),
+    L(55, 7.5, 0.4, TOXIC, 1.1, 10, { mode: 'pulse' }),
+    L(46, 18.5, 0.4, TOXIC, 1.1, 10, { mode: 'pulse' }),
+    L(55, 18, 0.4, TOXIC, 1.1, 10, { mode: 'pulse' }),
+    L(50, 13, 6.6, [0.7, 1, 0.75], 1.4, 16, { shaft: true, fixture: true }),
+    L(54.5, 12.5, 3.0, [0.45, 0.6, 1], 1.0, 6),
+    L(61.8, 8, 3.5, RED, 0.7, 5),
+    L(61.8, 16, 3.5, RED, 0.7, 5),
+    L(56.5, 21.3, 2.4, ORANGE, 0.6, 4),
+    // secret
+    L(56.5, 24.5, 2.7, [1, 0.35, 0.2], 1.0, 5, { mode: 'flicker' }),
+    // exit hall + control room
+    L(50, 25, 3.3, RED, 1.3, 7, { mode: 'alarm' }),
+    L(47, 29.5, 5.6, ORANGE, 1.4, 12, { fixture: true }),
+    L(57, 29.5, 5.6, ORANGE, 1.4, 12, { fixture: true }),
+    L(47, 35.5, 5.6, ORANGE, 1.3, 12, { fixture: true }),
+    L(57, 35.5, 5.6, ORANGE, 1.3, 12, { fixture: true }),
+    L(52, 32.5, 5.8, RED, 1.2, 12, { mode: 'pulse' }),
+    L(63, 32, 2.0, [0.4, 1, 0.65], 1.8, 9, { mode: 'pulse' }),
+  ],
+  things,
+  triggers: [
+    { id: 't_start', when: { start: true }, actions: [{ do: 'objective', key: 'obj.explore' }, { do: 'checkpoint', id: 'cp_start' }], delay: 0 },
+    { id: 't_intro', when: { start: true }, actions: [{ do: 'voice', id: 'v_intro' }], delay: 1.2 },
+    { id: 't_contact', when: { enter: [7, 30, 2, 3] }, actions: [{ do: 'voice', id: 'v_contact' }] },
+    { id: 't_shotgun', when: { pickup: 'i_shotgun' }, actions: [{ do: 'voice', id: 'v_shotgun' }, { do: 'wave', id: 'armory' }] },
+    { id: 't_hangar', when: { enter: [3, 16, 9, 4] }, actions: [{ do: 'objective', key: 'obj.red' }, { do: 'voice', id: 'v_red' }] },
+    { id: 't_hangarWave', when: { enter: [15, 6, 4, 14] }, actions: [{ do: 'wave', id: 'hangar1' }, { do: 'voice', id: 'v_hangarWave' }] },
+    { id: 't_redKey', when: { pickup: 'i_keyRed' }, actions: [{ do: 'wave', id: 'hangarKey' }, { do: 'objective', key: 'obj.redDoor' }, { do: 'voice', id: 'v_redKey' }] },
+    { id: 't_hangarClear', when: { waveCleared: 'hangar1' }, actions: [{ do: 'voice', id: 'v_hangarClear' }], delay: 1.0 },
+    { id: 't_redCheckpoint', when: { enter: [36, 11, 2, 2] }, actions: [{ do: 'checkpoint', id: 'cp_red' }] },
+    { id: 't_chainsword', when: { pickup: 'i_chainsword' }, actions: [{ do: 'voice', id: 'v_chainsword' }] },
+    { id: 't_nukage', when: { enter: [43, 11, 3, 2] }, actions: [{ do: 'objective', key: 'obj.blue' }, { do: 'voice', id: 'v_nukage' }] },
+    { id: 't_blueKey', when: { pickup: 'i_keyBlue' }, actions: [{ do: 'openDoor', id: 'd_closet1' }, { do: 'openDoor', id: 'd_closet2' }, { do: 'wave', id: 'nukAmbush' }, { do: 'objective', key: 'obj.blueDoor' }, { do: 'voice', id: 'v_ambush' }] },
+    { id: 't_blueCheckpoint', when: { enter: [49, 23, 2, 2] }, actions: [{ do: 'checkpoint', id: 'cp_blue' }] },
+    { id: 't_control', when: { enter: [44, 27, 16, 2] }, actions: [{ do: 'wave', id: 'final' }, { do: 'objective', key: 'obj.clear' }, { do: 'voice', id: 'v_control' }] },
+    { id: 't_finalClear', when: { waveCleared: 'final' }, actions: [{ do: 'unlockDoor', id: 'd_exit' }, { do: 'openDoor', id: 'd_exit' }, { do: 'message', key: 'msg.exitOpen' }, { do: 'objective', key: 'obj.exit' }, { do: 'voice', id: 'v_exitOpen' }], delay: 0.8 },
+    { id: 't_exit', when: { enter: [62, 31, 2, 2] }, actions: [{ do: 'exit' }] },
+  ],
+  checkpoints: [
+    { id: 'cp_start', x: 7.5, y: 44.5, angle: 180 },
+    { id: 'cp_red', x: 37.0, y: 12.0, angle: 90 },
+    { id: 'cp_blue', x: 50.0, y: 24.0, angle: 0 },
+  ],
+  secrets: [{ id: 's_stash', rect: [55, 23, 3, 3] }],
+  menuPath: [
+    [9, 18.4, 2.2], [12.5, 15.5, 3.4], [18, 11, 5.2], [24, 8, 6.6], [31, 8.5, 5],
+    [32.5, 13.8, 3.2], [25, 18.6, 2.6], [15, 18.8, 2.4], [5.5, 14, 3.4], [5.5, 7.5, 5.6], [13, 5.6, 7.2],
+  ],
+};
