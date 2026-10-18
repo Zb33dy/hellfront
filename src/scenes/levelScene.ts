@@ -1,5 +1,5 @@
 import { Color3, Color4, FreeCamera, Scene, Vector3, type Engine } from '@babylonjs/core';
-import { CELL, DIFFICULTY, ENEMIES, PLAYER, AMMO_MAX, type Difficulty, type HitscanWeaponDef, type MeleeWeaponDef, type WeaponId } from '../core/config';
+import { CELL, DIFFICULTY, ENEMIES, PLAYER, AMMO_MAX, type Difficulty, type EnemyKind, type HitscanWeaponDef, type MeleeWeaponDef, type WeaponId } from '../core/config';
 import type { Input } from '../core/input';
 import { t } from '../core/i18n';
 import { rand } from '../core/util';
@@ -30,6 +30,11 @@ import type { Enemy } from '../entities/enemy';
 import { Zombieman } from '../entities/zombieman';
 import { Imp } from '../entities/imp';
 import { Pinky } from '../entities/pinky';
+import { Ironclad } from '../entities/ironclad';
+import { Warden } from '../entities/warden';
+import { Executioner } from '../entities/executioner';
+import { BreachCore } from '../entities/breachCore';
+import type { PlayerState } from '../entities/player';
 import { Projectiles } from '../entities/projectile';
 import { Barrel, type Prop } from '../entities/barrel';
 import { WeaponSystem } from '../weapons/weaponSystem';
@@ -44,7 +49,19 @@ export interface LevelHooks {
   voice(id: string): void;
 }
 
-const PICKUP_KINDS = new Set<string>(['healthSmall', 'healthLarge', 'armor', 'bulletClip', 'bulletBox', 'shells', 'shellBox', 'keyRed', 'keyBlue', 'shotgun', 'chainsword']);
+function makeEnemy(kind: EnemyKind, x: number, z: number, angle: number, hpMul: number): Enemy {
+  switch (kind) {
+    case 'zombieman': return new Zombieman(x, z, angle, hpMul);
+    case 'imp': return new Imp(x, z, angle, hpMul);
+    case 'pinky': return new Pinky(x, z, angle, hpMul);
+    case 'ironclad': return new Ironclad(x, z, angle, hpMul);
+    case 'warden': return new Warden(x, z, angle, hpMul);
+    case 'executioner': return new Executioner(x, z, angle, hpMul);
+    case 'core': return new BreachCore(x, z, angle, hpMul);
+  }
+}
+
+const PICKUP_KINDS = new Set<string>(['healthSmall', 'healthLarge', 'armor', 'bulletClip', 'bulletBox', 'shells', 'shellBox', 'keyRed', 'keyBlue', 'keyYellow', 'shotgun', 'chainsword']);
 
 export class LevelScene implements GameCtx {
   readonly scene: Scene;
@@ -86,6 +103,10 @@ export class LevelScene implements GameCtx {
   private liftLoops = new Map<Lift, SoundHandle>();
   private tmpLight: [number, number, number] = [0, 0, 0];
   private initialPickups = 0;
+  private lavaCells = new Set<number>();
+  private summoned = new Set<Enemy>();
+  private boss: Enemy | null = null;
+  private bossShown = false;
   started = false;
 
   private constructor(
@@ -116,6 +137,7 @@ export class LevelScene implements GameCtx {
   static async create(
     engine: Engine, data: LevelData, difficulty: Difficulty, audio: AudioManager, ui: UIManager,
     settings: () => Settings, hooks: LevelHooks, save: SaveData | null, progress: (p: number, label: string) => Promise<void>,
+    carry: PlayerState | null = null,
   ): Promise<LevelScene> {
     const L = new LevelScene(engine, data, difficulty, audio, ui, settings, hooks);
     await progress(0.1, 'SPRITES');
@@ -124,6 +146,7 @@ export class LevelScene implements GameCtx {
     L.built = buildLevel(data, L.scene, L.lights);
     await progress(0.6, 'ENTITIES');
     L.setupWorld();
+    L.applyLoadout(carry);
     await progress(0.8, 'FX');
     L.setupFx();
     if (save) L.restore(save);
@@ -171,8 +194,11 @@ export class LevelScene implements GameCtx {
         this.shake.add(Math.min(0.25, v / 40));
       },
       onNukage: () => {
-        this.damagePlayer(PLAYER.nukageDamage * (this.difficulty === 'easy' ? 0.6 : 1), this.player.pos, 'blast');
-        this.ui.hud.flash('toxic', 0.5);
+        const ci = this.world.grid.cellAt(this.player.pos.x, this.player.pos.z);
+        const lava = this.lavaCells.has(ci);
+        this.damagePlayer(PLAYER.nukageDamage * (lava ? 2.2 : 1) * (this.difficulty === 'easy' ? 0.6 : 1), this.player.pos, 'blast');
+        this.ui.hud.flash(lava ? 'red' : 'toxic', 0.5);
+        if (lava) this.particles.emit('fire', this.player.pos.add(new Vector3(0, 0.2, 0)), new Vector3(0, 1, 0), 8, 0.6);
       },
       onJump: () => {},
     });
@@ -210,6 +236,9 @@ export class LevelScene implements GameCtx {
         this.props.push({ kind: th.kind, pos, collider: col });
       }
     });
+    for (const z of this.data.zones) if (z.lava) this.built.grid.eachRect(z.rect, (i) => this.lavaCells.add(i));
+    if (this.data.fogColor) this.lights.fogColor.set(...this.data.fogColor);
+    this.boss = this.enemies.find((e) => e.def.bossName) ?? null;
     this.totalKills = this.enemies.length;
     this.initialPickups = this.pickups.length;
     this.totalItems = this.pickups.length;
@@ -220,15 +249,57 @@ export class LevelScene implements GameCtx {
     const x = th.x * CELL, z = th.y * CELL;
     const hpMul = this.diff.enemyHealth;
     const angle = th.angle ?? 0;
-    const e = th.kind === 'zombieman' ? new Zombieman(x, z, angle, hpMul) : th.kind === 'imp' ? new Imp(x, z, angle, hpMul) : new Pinky(x, z, angle, hpMul);
+    const e = makeEnemy(th.kind as EnemyKind, x, z, angle, hpMul);
     e.spawnIndex = index;
     e.ambush = !!th.ambush;
     e.wave = th.wave;
     e.teleport = !!th.teleport;
     e.pos.y = this.world.groundAt(x, z, e.radius, 10, 20);
     e.spawn.y = e.pos.y;
-    if (th.wave) e.setState('dormant');
+    if (th.wave && !th.awake) e.setState('dormant');
     this.enemies.push(e);
+  }
+
+  /** Starting weapons/ammo: carried over from the previous chapter, or the chapter's default loadout. */
+  private applyLoadout(carry: PlayerState | null): void {
+    const p = this.player;
+    if (carry) {
+      p.applyState({ ...carry, keys: [] });
+      p.health = Math.max(p.health, 60);
+      return;
+    }
+    const l = this.data.startLoadout;
+    p.applyState({ health: l.health, armor: l.armor, ammo: { bullets: l.bullets, shells: l.shells }, weapons: [...l.weapons], keys: [] });
+  }
+
+  summon(kind: EnemyKind, x: number, z: number): Enemy | null {
+    const g = this.world.grid;
+    // find open floor near the requested spot
+    let px = x, pz = z;
+    for (let tries = 0; tries < 12; tries++) {
+      const ci = g.cellAt(px, pz);
+      if (ci >= 0 && !g.isSolid(ci) && !this.lavaCells.has(ci) && g.kind[ci] !== CellKind.Nukage) break;
+      if (tries === 11) return null;
+      const a = Math.random() * Math.PI * 2;
+      px = x + Math.sin(a) * (2 + tries * 0.6);
+      pz = z + Math.cos(a) * (2 + tries * 0.6);
+    }
+    const e = makeEnemy(kind, px, pz, 0, this.diff.enemyHealth);
+    e.pos.y = this.world.groundAt(px, pz, e.radius, 10, 20);
+    e.spawn.y = e.pos.y;
+    e.setState('alert');
+    e.lastSeen = this.player.pos.clone();
+    this.enemies.push(e);
+    this.summoned.add(e);
+    this.telefogs.push({ pos: e.pos.clone(), t: 0 });
+    this.particles.emit('teleport', e.pos.add(new Vector3(0, 1, 0)), new Vector3(0, 1, 0), 30, 1);
+    this.lights.addFx(e.pos.add(new Vector3(0, 1.2, 0)), new Color3(1, 0.3, 0.3), 2.2, 6, 0.6);
+    this.sound('teleport', e.pos);
+    return e;
+  }
+
+  pushPlayer(v: Vector3): void {
+    this.player.vel.addInPlace(v);
   }
 
   private setupFx(): void {
@@ -245,7 +316,8 @@ export class LevelScene implements GameCtx {
     };
     this.post = new PostFX(this.scene, this.camera, this.settings());
     // dust motes in the hangar light shafts
-    this.particles.dust(new Vector3(3 * CELL, 0.5, 4 * CELL), new Vector3(35 * CELL, 9, 20 * CELL));
+    const du = this.data.dust;
+    if (du) this.particles.dust(new Vector3(du[0] * CELL, 0.5, du[1] * CELL), new Vector3((du[0] + du[2]) * CELL, 9, (du[1] + du[3]) * CELL));
   }
 
   applySettings(s: Settings): void {
@@ -264,10 +336,11 @@ export class LevelScene implements GameCtx {
   begin(fromSave: boolean): void {
     if (this.started) return;
     this.started = true;
-    this.loops.push(this.sound('amb_hangar', null, { loop: true }));
-    this.loops.push(this.sound('amb_industrial', null, { loop: true }));
-    this.loops.push(this.sound('amb_alarm', null, { loop: true }));
-    this.loops.push(this.sound('amb_nukage', new Vector3(51 * CELL, 0, 13 * CELL), { loop: true, refDistance: 8 }));
+    const amb = this.data.ambience;
+    this.loops.push(this.sound('amb_hangar', null, { loop: true, pitch: this.data.chapter > 1 ? 0.8 : 1 }));
+    this.loops.push(this.sound('amb_industrial', null, { loop: true, pitch: this.data.chapter === 3 ? 0.7 : 1 }));
+    if (amb.alarm) this.loops.push(this.sound('amb_alarm', null, { loop: true }));
+    if (amb.nukage) this.loops.push(this.sound('amb_nukage', new Vector3(amb.nukage[0] * CELL, 0, amb.nukage[1] * CELL), { loop: true, refDistance: 8, pitch: this.data.chapter > 1 ? 0.6 : 1 }));
     this.weapons.reset(this.player.weapons.has('shotgun') && this.player.ammo.shells > 0 ? 'shotgun' : 'pistol');
     this.weapons.weapon.select(this);
     if (!fromSave) this.triggers.start();
@@ -331,7 +404,15 @@ export class LevelScene implements GameCtx {
     this.particles.emit('blood', at, d.scale(-0.3).add(new Vector3(0, 0.6, 0)), Math.min(26, 6 + amount), 0.6);
     e.damage(amount, d, kind, this);
     if (!e.alive) {
-      this.kills++;
+      if (!this.summoned.has(e)) this.kills++;
+      if (e.def.bossName) {
+        this.shake.add(1);
+        this.lights.addFx(e.eye, new Color3(1, 0.5, 0.2), 6, 22, 1.2);
+        this.particles.emit('fire', e.eye, new Vector3(0, 1, 0), 60, 2.5, 1.5);
+        this.sound('barrel_explode', e.pos, { pitch: 0.5, volume: 1.4 });
+        // the boss's minions collapse with it
+        for (const m of this.summoned) if (m.alive) this.damageEnemy(m, 9999, new Vector3(0, 1, 0), 'blast');
+      }
       const playerCaused = kind === 'bullet' || kind === 'pellet' || kind === 'saw' || kind === 'blast';
       if (playerCaused) this.playerHit({ kill: true });
       if (e.kind === 'zombieman') this.spawnDrop('bulletClip', e.pos);
@@ -674,7 +755,7 @@ export class LevelScene implements GameCtx {
   private complete(): void {
     if (this.completed) return;
     this.completed = true;
-    this.hooks.voice('v_complete');
+    if (this.data.completeVoice) this.hooks.voice(this.data.completeVoice);
     this.sound('level_complete');
     this.hooks.onComplete({
       kills: this.kills, totalKills: this.totalKills, items: this.items, totalItems: this.totalItems,
@@ -709,9 +790,9 @@ export class LevelScene implements GameCtx {
     }
     if (!door) return;
     const r = door.use(p.keys, true);
-    if (r === 'needRed' || r === 'needBlue' || r === 'locked') {
+    if (r === 'needRed' || r === 'needBlue' || r === 'needYellow' || r === 'locked') {
       this.sound('door_locked');
-      this.ui.hud.message(t(r === 'needRed' ? 'msg.needRed' : r === 'needBlue' ? 'msg.needBlue' : 'msg.locked'));
+      this.ui.hud.message(t(r === 'locked' ? 'msg.locked' : 'msg.' + r));
     }
   }
 
@@ -755,6 +836,7 @@ export class LevelScene implements GameCtx {
     this.triggers.update(dt, p.pos.x, p.pos.z);
     this.checkSecrets();
     this.checkWaves();
+    this.updateBoss();
     for (const tf of this.telefogs) tf.t += dt;
     this.telefogs = this.telefogs.filter((tf) => tf.t < 0.5);
 
@@ -873,6 +955,14 @@ export class LevelScene implements GameCtx {
       this.sound('secret_found');
       this.hooks.voice('v_secret');
     }
+  }
+
+  private updateBoss(): void {
+    const b = this.boss;
+    const show = !!b && b.state !== 'dormant' && b.state !== 'idle' && (b.alive || b.deathT < 1.5);
+    if (show && b) this.ui.hud.setBoss(b.def.bossName!, b.hp / b.maxHp);
+    else if (this.bossShown) this.ui.hud.setBoss(null, 0);
+    this.bossShown = show;
   }
 
   private checkWaves(): void {

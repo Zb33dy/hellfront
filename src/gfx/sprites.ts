@@ -1,5 +1,6 @@
 import { RawTexture, Texture, type Scene } from '@babylonjs/core';
 import { Pix, glow, type RGBA } from './pixart';
+import { breachCore, executioner, hellbolt, ironclad, warden, type Pose } from './spritesCh23';
 
 // Original procedural pixel-art sprites for enemies, pickups, props and projectiles.
 // Everything is packed into one atlas so all billboards render in a single draw call.
@@ -12,7 +13,7 @@ export interface SpriteFrame {
 }
 
 export const PPU = 32; // sprite pixels per world unit
-const ATLAS = 1024;
+const ATLAS = 2048;
 
 export const SPRITES: Record<string, SpriteFrame> = {};
 let atlasData: Uint8Array | null = null;
@@ -544,6 +545,7 @@ function buildFrames(): Map<string, { pix: Pix; anchor: 'bottom' | 'center' }> {
   add('shellBox', shells(0, true));
   add('keyRed', keycard([255, 40, 30]));
   add('keyBlue', keycard([40, 110, 255]));
+  add('keyYellow', keycard([255, 210, 40]));
   add('shotgun', shotgunPickup());
   add('chainsword', chainswordPickup());
   add('barrel', barrel());
@@ -555,6 +557,43 @@ function buildFrames(): Map<string, { pix: Pix; anchor: 'bottom' | 'center' }> {
   for (let k = 0; k < 4; k++) add(`chunk${k}`, chunk(k), 'center');
   add('casing', casing(false), 'center');
   add('shellCasing', casing(true), 'center');
+
+  // ---- Chapter 2 / 3 monsters
+  const walkPoses = (w: number, h: number): Pose[] => {
+    const cx = w / 2, sp = w * 0.11, g = h - 1;
+    return [
+      {},
+      { bob: -1, lFoot: [cx - sp - 2, g - 2], rFoot: [cx + sp + 2, g] },
+      { lFoot: [cx - sp + 1, g], rFoot: [cx + sp - 1, g] },
+      { bob: -1, lFoot: [cx - sp - 2, g], rFoot: [cx + sp + 2, g - 2] },
+    ];
+  };
+  const monster = (name: string, fn: (p: Pose) => Pix, w: number, h: number, poolR: number) => {
+    walkPoses(w, h).forEach((p, i) => add(name + '_walk' + i, fn(p)));
+    add(name + '_idle', fn({}));
+    add(name + '_atk0', fn({ atk: 1 }));
+    add(name + '_atk1', fn({ atk: 2 }));
+    add(name + '_cast', fn({ cast: true }));
+    add(name + '_pain', fn({ pain: true }));
+    const limp = fn({ limp: true });
+    deathFrames(limp, w, h, poolR).forEach((f, i) => add(name + '_die' + i, f));
+    gibFrames(limp, w, h).forEach((f, i) => add(name + '_gib' + i, f));
+  };
+  monster('ironclad', ironclad, 72, 72, 18);
+  monster('warden', warden, 112, 112, 30);
+  monster('executioner', executioner, 80, 84, 20);
+  add('core_idle', breachCore(0));
+  add('core_walk0', breachCore(0));
+  add('core_walk1', breachCore(1));
+  add('core_walk2', breachCore(0));
+  add('core_walk3', breachCore(1));
+  add('core_atk0', breachCore(1, true));
+  add('core_atk1', breachCore(1, true));
+  add('core_cast', breachCore(1, true));
+  add('core_pain', breachCore(1));
+  for (let k = 0; k < 5; k++) add('core_die' + k, breachCore(0, false, k));
+  for (let k = 0; k < 4; k++) add('core_gib' + k, breachCore(0, false, k + 1));
+  for (let k = 0; k < 2; k++) add('bolt' + k, hellbolt(k), 'center');
   return m;
 }
 

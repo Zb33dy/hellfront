@@ -12,9 +12,10 @@ import { VOICE_LINES, lineText } from '../audio/subtitles';
 import { UIManager } from '../ui/uiManager';
 import type { UISound } from '../ui/dom';
 import { MenuScene } from '../scenes/menuScene';
-import type { LevelScene } from '../scenes/levelScene';
-import { createLevel01 } from '../scenes/level01Scene';
+import { LevelScene as LevelScene } from '../scenes/levelScene';
 import { LEVEL01 } from '../level/level01.data';
+import { getLevel, LEVEL_ORDER } from '../level/levels';
+import type { PlayerState } from '../entities/player';
 import type { LevelStats } from '../ui/levelComplete';
 
 export type GameState = 'boot' | 'bootReady' | 'menu' | 'loading' | 'ready' | 'playing' | 'paused' | 'dead' | 'complete' | 'chapter';
@@ -31,6 +32,10 @@ export class Game {
   menuScene: MenuScene | null = null;
   level: LevelScene | null = null;
   difficulty: Difficulty = 'normal';
+  levelId = 'level01';
+  /** Player state carried into the current level (re-used on restart). */
+  private carry: PlayerState | null = null;
+  private nextCarry: PlayerState | null = null;
   /** Lets automated tests run gameplay without pointer lock. */
   allowUnlocked = false;
   private loadedFromSave = false;
@@ -42,33 +47,41 @@ export class Game {
     setLang(this.settings.data.language);
     const sound = (s: UISound) => this.audio.play(s);
     this.ui = new UIManager(root, this.settings, sound, {
-      onNewGame: (d) => this.startLevel(d, null),
+      onNewGame: (d, id) => this.startLevel(id, d, null, null),
+      chapters: () => LEVEL_ORDER.map((l) => ({ id: l.id, label: `${t('chapter.n', { n: l.chapter })} — ${t(l.titleKey)}` })),
       onContinue: () => {
         const s = SaveStore.load();
-        if (s) this.startLevel(s.difficulty, s);
+        if (s) this.startLevel(s.level, s.difficulty, s, null);
       },
       onSettings: () => this.openSettings('menu'),
       hasSave: () => SaveStore.has(),
       pause: {
         onResume: () => this.resume(),
         onSettings: () => this.openSettings('pause'),
-        onRestart: () => this.startLevel(this.difficulty, null),
+        onRestart: () => this.startLevel(this.levelId, this.difficulty, null, this.carry),
         onQuit: () => this.quitToMenu(),
       },
       death: {
         onRespawn: () => {
           const s = SaveStore.load();
-          this.startLevel(this.difficulty, s && s.difficulty === this.difficulty ? s : null);
+          this.startLevel(this.levelId, this.difficulty, s && s.difficulty === this.difficulty && s.level === this.levelId ? s : null, this.carry);
         },
-        onRestart: () => this.startLevel(this.difficulty, null),
+        onRestart: () => this.startLevel(this.levelId, this.difficulty, null, this.carry),
         onQuit: () => this.quitToMenu(),
       },
       onCompleteContinue: () => {
         this.ui.complete.hide();
-        this.ui.chapter.show();
+        const data = getLevel(this.levelId);
+        const next = getLevel(data?.next);
+        const title = next ? t('chapter.end', { n: data?.chapter ?? 1 }) : t('ending.title');
+        this.ui.chapter.show(title, t(data?.outroKey ?? 'ch1.outro'), !!next);
         this.state = 'chapter';
       },
       onChapterMenu: () => this.quitToMenu(),
+      onChapterNext: () => {
+        const next = getLevel(getLevel(this.levelId)?.next);
+        if (next) this.startLevel(next.id, this.difficulty, null, this.nextCarry);
+      },
       onLoadingConfirm: () => this.confirmLoading(),
     });
     this.input.onLockLost = () => {
@@ -152,10 +165,13 @@ export class Game {
     });
   }
 
-  async startLevel(difficulty: Difficulty, save: SaveData | null): Promise<void> {
+  async startLevel(levelId: string, difficulty: Difficulty, save: SaveData | null, carry: PlayerState | null): Promise<void> {
     if (this.state === 'loading') return;
+    const data = getLevel(levelId) ?? LEVEL01;
     this.state = 'loading';
     this.difficulty = difficulty;
+    this.levelId = data.id;
+    this.carry = carry;
     this.loadedFromSave = !!save;
     this.input.releaseLock();
     this.ui.hideAll();
@@ -164,7 +180,7 @@ export class Game {
     this.ui.subtitles.clear();
     this.audio.stopVoice();
     this.audio.muffle(false);
-    this.ui.loading.show();
+    this.ui.loading.show({ title: `${t('chapter.n', { n: data.chapter })} — ${t(data.titleKey)}`, body: t(data.introKey) });
     await nextFrame();
     this.level?.dispose();
     this.level = null;
@@ -174,12 +190,12 @@ export class Game {
       this.ui.loading.progress(p, label);
       await nextFrame();
     };
-    this.level = await createLevel01(this.engine, difficulty, this.audio, this.ui, () => this.settings.data, {
+    this.level = await LevelScene.create(this.engine, data, difficulty, this.audio, this.ui, () => this.settings.data, {
       onDeath: () => this.onDeath(),
       onComplete: (s) => this.onComplete(s),
       onCheckpoint: (s) => SaveStore.save(s),
       voice: (id) => this.voice(id),
-    }, save, progress);
+    }, save, progress, carry);
     this.ui.loading.ready();
     this.state = 'ready';
   }
@@ -222,10 +238,13 @@ export class Game {
     this.state = 'complete';
     this.input.releaseLock();
     SaveStore.clear();
+    this.nextCarry = this.level ? this.level.player.state : null;
+    const data = getLevel(this.levelId);
+    const title = `${t(data?.titleKey ?? 'ch1.title')} — ${t('complete.cleared')}`;
     setTimeout(() => {
       this.ui.navEnabled = true;
       this.ui.hud.hide();
-      this.ui.complete.show(stats);
+      this.ui.complete.show(stats, title);
     }, 1400);
   }
 

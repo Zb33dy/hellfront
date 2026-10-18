@@ -17,9 +17,11 @@ export interface ZoneDef {
   stepTex?: TileName;
   ambient: RGB;
   nukage?: boolean;
+  /** Molten slag instead of nukage: hotter, more damage. Requires nukage: true. */
+  lava?: boolean;
 }
 
-export type DoorType = 'normal' | 'red' | 'blue' | 'closet' | 'secret' | 'locked';
+export type DoorType = 'normal' | 'red' | 'blue' | 'yellow' | 'closet' | 'secret' | 'locked';
 
 export interface DoorDef {
   id: string;
@@ -60,7 +62,7 @@ export interface LightDef {
 
 export type PickupKind =
   | 'healthSmall' | 'healthLarge' | 'armor' | 'bulletClip' | 'bulletBox' | 'shells' | 'shellBox'
-  | 'keyRed' | 'keyBlue' | 'shotgun' | 'chainsword';
+  | 'keyRed' | 'keyBlue' | 'keyYellow' | 'shotgun' | 'chainsword';
 
 export type PropKind = 'barrel' | 'lamp' | 'techColumn' | 'corpse';
 
@@ -77,6 +79,8 @@ export interface ThingDef {
   /** Difficulty flags: e = easy, n = normal, h = hard. Default "enh". */
   skill?: string;
   teleport?: boolean;
+  /** Wave member that is present (not dormant) from the start. */
+  awake?: boolean;
 }
 
 export type TriggerAction =
@@ -115,8 +119,28 @@ export interface SecretDef {
   rect: Rect;
 }
 
+export interface Loadout {
+  weapons: ('pistol' | 'shotgun' | 'chainsword')[];
+  bullets: number;
+  shells: number;
+  health: number;
+  armor: number;
+}
+
 export interface LevelData {
   id: string;
+  chapter: number;
+  /** i18n keys */
+  titleKey: string;
+  introKey: string;
+  outroKey: string;
+  next: string | null;
+  /** Loadout when the chapter is started directly (chapter select). */
+  startLoadout: Loadout;
+  completeVoice: string;
+  ambience: { nukage?: [number, number]; alarm?: boolean };
+  dust?: Rect;
+  fogColor?: RGB;
   width: number;
   height: number;
   defaultWall: TileName;

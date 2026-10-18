@@ -74,6 +74,10 @@ export function updateEnemy(e: Enemy, dt: number, ctx: GameCtx): void {
       }
       e.attackCD -= dt;
       if (e.tryAttack(ctx, dist, e.seesPlayer)) break;
+      if (e.chaseSpeed() <= 0) {
+        e.moving = false;
+        break;
+      }
       // pick movement goal
       let gx: number, gz: number;
       const direct = e.seesPlayer && dist < 16;

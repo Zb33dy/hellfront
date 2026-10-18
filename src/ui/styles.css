@@ -658,3 +658,47 @@ html, body {
 
 .quit-box { width: min(560px, 90vw); padding: 30px; text-align: center; }
 .quit-box p { font-size: 28px; }
+
+.boss-bar {
+  position: absolute;
+  left: 50%; top: 110px;
+  transform: translateX(-50%);
+  width: min(620px, 52vw);
+  text-align: center;
+  pointer-events: none;
+  transition: opacity .4s;
+}
+.boss-bar.hidden { opacity: 0; }
+.boss-name {
+  font-family: var(--font-head);
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: #ffb070;
+  text-shadow: 2px 2px 0 #000, 0 0 10px #ff4a1a;
+  margin-bottom: 6px;
+}
+.boss-track {
+  height: 14px;
+  border: 2px solid #1a0a06;
+  background: #2a0d08;
+  box-shadow: 0 0 0 2px #6a2a12, 0 4px 12px rgba(0,0,0,.6);
+}
+.boss-track i {
+  display: block; height: 100%; width: 100%;
+  background: linear-gradient(#ff7a3a, #c21a0a 60%, #7a0a04);
+  transition: width .15s;
+}
+
+.story-card {
+  width: min(720px, 86vw);
+  padding: 18px 26px 20px;
+  margin: 18px 0 14px;
+}
+.story-title {
+  font-family: var(--font-head);
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: var(--fire-hi);
+  margin-bottom: 10px;
+}
+.story-body { font-size: 24px; line-height: 1.25; color: #e3d2bb; }

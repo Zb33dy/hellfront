@@ -9,10 +9,10 @@ import type { DoorDef, LiftDef } from './types';
 type BakeFn = (x: number, y: number, z: number) => [number, number, number];
 
 const DOOR_TILES: Record<DoorDef['type'], TileName> = {
-  normal: 'door', red: 'doorRed', blue: 'doorBlue', closet: 'closet', secret: 'secretWall', locked: 'door',
+  normal: 'door', red: 'doorRed', blue: 'doorBlue', yellow: 'doorYellow', closet: 'closet', secret: 'secretWall', locked: 'door',
 };
 
-export type DoorUseResult = 'opened' | 'closed' | 'needRed' | 'needBlue' | 'locked' | 'busy' | 'none';
+export type DoorUseResult = 'opened' | 'closed' | 'needRed' | 'needBlue' | 'needYellow' | 'locked' | 'busy' | 'none';
 
 export class Door {
   open = 0;
@@ -32,7 +32,7 @@ export class Door {
 
   constructor(readonly def: DoorDef, readonly index: number, grid: Grid, scene: Scene, mat: ShaderMaterial, bake: BakeFn) {
     grid.eachRect(def.rect, (i) => this.cells.push(i));
-    this.key = def.type === 'red' ? 'red' : def.type === 'blue' ? 'blue' : null;
+    this.key = def.type === 'red' ? 'red' : def.type === 'blue' ? 'blue' : def.type === 'yellow' ? 'yellow' : null;
     this.locked = def.type === 'locked';
     const [rx, ry, rw, rh] = def.rect;
     const i0 = this.cells[0];
@@ -51,7 +51,7 @@ export class Door {
       this.slab = { minX: x0, maxX: x1, minZ: cz - th / 2, maxZ: cz + th / 2, minY: this.floor, maxY: this.top };
     }
     const g = new GeoBuilder();
-    const tile = def.type === 'locked' ? 'doorYellow' : DOOR_TILES[def.type];
+    const tile = DOOR_TILES[def.type];
     const s = this.slab;
     const H = this.top - this.floor;
     // Faces: fit vertically, one tile per cell horizontally.
@@ -88,7 +88,7 @@ export class Door {
   use(keys: Set<KeyColor>, byPlayer: boolean): DoorUseResult {
     if (this.def.type === 'closet' && byPlayer) return 'none';
     if (this.locked) return 'locked';
-    if (this.key && !keys.has(this.key)) return this.key === 'red' ? 'needRed' : 'needBlue';
+    if (this.key && !keys.has(this.key)) return this.key === 'red' ? 'needRed' : this.key === 'blue' ? 'needBlue' : 'needYellow';
     if (this.state === 'closed' || this.state === 'closing') {
       this.state = 'opening';
       this.onSound?.('open', this);

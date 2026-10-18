@@ -77,7 +77,8 @@ export const WEAPONS: { pistol: HitscanWeaponDef; shotgun: HitscanWeaponDef; cha
 export const WEAPON_SLOTS: WeaponId[] = ['pistol', 'shotgun', 'chainsword'];
 export const WEAPON_SWITCH_TIME = 0.22;
 
-export type EnemyKind = 'zombieman' | 'imp' | 'pinky';
+export type EnemyKind = 'zombieman' | 'imp' | 'pinky' | 'ironclad' | 'warden' | 'executioner' | 'core';
+export type DamageType = 'bullet' | 'pellet' | 'melee' | 'fireball' | 'blast' | 'saw';
 
 export interface EnemyDef {
   hp: number;
@@ -97,6 +98,12 @@ export interface EnemyDef {
   rangedRange: number;
   gibThreshold: number; // overkill damage that gibs
   score: number;
+  /** Knockback resistance: 0 = immovable, 1 = normal. */
+  mass?: number;
+  /** Per-damage-type multipliers (armor plating, weak spots). */
+  dmgMul?: Partial<Record<DamageType, number>>;
+  /** Shows a boss health bar with this i18n name key. */
+  bossName?: string;
 }
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
@@ -116,12 +123,42 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     hp: 150, speed: 5.6, radius: 0.65, height: 1.6, painChance: 0.35, painTime: 0.35,
     sightRange: 32, reaction: 0.35, meleeRange: 1.9, meleeWindup: 0.32, meleeDamage: [10, 20],
     rangedWindup: 0, rangedCooldown: [0, 0], rangedDamage: [0, 0], rangedRange: 0,
-    gibThreshold: 60, score: 1,
+    gibThreshold: 60, score: 1, mass: 0.35,
+  },
+  // Chapter 2: armored husk. Plating shrugs off bullets, the chainsword bites straight through.
+  ironclad: {
+    hp: 150, speed: 2.7, radius: 0.6, height: 2.1, painChance: 0.25, painTime: 0.35,
+    sightRange: 34, reaction: 0.5, meleeRange: 2.0, meleeWindup: 0.55, meleeDamage: [12, 22],
+    rangedWindup: 0, rangedCooldown: [0, 0], rangedDamage: [0, 0], rangedRange: 0,
+    gibThreshold: 70, score: 1, mass: 0.25,
+    dmgMul: { bullet: 0.3, pellet: 0.3, fireball: 0.5, blast: 0.7, saw: 2.6 },
+  },
+  // Chapter 2 boss.
+  warden: {
+    hp: 1700, speed: 2.4, radius: 1.0, height: 3.0, painChance: 0.04, painTime: 0.25,
+    sightRange: 60, reaction: 0.8, meleeRange: 5.0, meleeWindup: 0.95, meleeDamage: [30, 45],
+    rangedWindup: 0.85, rangedCooldown: [1.6, 2.6], rangedDamage: [10, 16], rangedRange: 50,
+    gibThreshold: 99999, score: 1, mass: 0, bossName: 'boss.warden',
+  },
+  // Chapter 3: slow, telegraphed heavy hitter (blade slam + charged hellbolt).
+  executioner: {
+    hp: 260, speed: 2.5, radius: 0.65, height: 2.3, painChance: 0.22, painTime: 0.3,
+    sightRange: 40, reaction: 0.6, meleeRange: 3.6, meleeWindup: 1.1, meleeDamage: [28, 42],
+    rangedWindup: 1.0, rangedCooldown: [3.0, 4.5], rangedDamage: [18, 28], rangedRange: 26,
+    gibThreshold: 90, score: 1, mass: 0.2,
+  },
+  // Chapter 3 finale: the breach heart. Immobile, summons defenders, pulses when approached.
+  core: {
+    hp: 1500, speed: 0, radius: 1.3, height: 3.4, painChance: 0, painTime: 0,
+    sightRange: 80, reaction: 0.2, meleeRange: 7.5, meleeWindup: 1.2, meleeDamage: [25, 35],
+    rangedWindup: 0, rangedCooldown: [8, 11], rangedDamage: [0, 0], rangedRange: 0,
+    gibThreshold: 99999, score: 1, mass: 0, bossName: 'boss.core',
   },
 };
 
 export const PINKY_CHARGE = { range: 9, windup: 0.4, speed: 11.5, duration: 0.9, cooldown: [2.5, 4] as [number, number] };
 export const FIREBALL = { speed: 12, radius: 0.28, life: 6 };
+export const HELLBOLT = { speed: 21 };
 export const HEARING_CELLS = 20;
 
 export const BARREL = { hp: 20, radius: 0.42, height: 1.15, blastRadius: 4.2, blastDamage: 110, chainDelay: 0.14 };

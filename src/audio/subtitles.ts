@@ -1,4 +1,5 @@
 import type { Lang } from '../core/i18n';
+import { CAMPAIGN_LINES } from './voiceLinesCampaign';
 
 export interface VoiceLine {
   id: string;
@@ -51,6 +52,7 @@ export const VOICE_LINES: VoiceLine[] = [
   { id: 'v_complete', file: 'voice/v_complete.mp3',
     en: 'Good work, marine. Hangar Seven is clear. Stand by for the next drop.',
     tr: 'İyi iş, asker. Hangar Yedi temiz. Bir sonraki iniş için beklemede kal.' },
+  ...CAMPAIGN_LINES,
 ];
 
 export function lineText(line: VoiceLine, lang: Lang): string {

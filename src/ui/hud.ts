@@ -79,6 +79,10 @@ export class HUD {
   private lowEl: HTMLElement;
   private msgEl: HTMLElement;
   private objEl: HTMLElement;
+  private bossEl: HTMLElement;
+  private bossName: HTMLElement;
+  private bossFill: HTMLElement;
+  private bossKey: string | null = null;
   readonly clickEl: HTMLElement;
   readonly viewLayer: HTMLElement;
   private cache: Record<string, string> = {};
@@ -102,7 +106,10 @@ export class HUD {
     this.msgEl = h('div', { class: 'messages' });
     this.objEl = h('div', { class: 'objective' });
     this.clickEl = h('div', { class: 'click-to-play' });
-    this.el.append(cross, this.hitEl, ring, this.msgEl, this.objEl, this.clickEl);
+    this.bossName = h('div', { class: 'boss-name' });
+    this.bossFill = h('i');
+    this.bossEl = h('div', { class: 'boss-bar hidden' }, [this.bossName, h('div', { class: 'boss-track' }, [this.bossFill])]);
+    this.el.append(cross, this.hitEl, ring, this.msgEl, this.objEl, this.clickEl, this.bossEl);
 
     const bar = h('div', { class: 'hud-bar' });
     const cell = (cls = '') => h('div', { class: 'hud-cell ' + cls });
@@ -213,6 +220,16 @@ export class HUD {
     while (this.msgEl.children.length > 4) this.msgEl.firstChild!.remove();
     setTimeout(() => d.classList.add('out'), 3200);
     setTimeout(() => d.remove(), 3900);
+  }
+
+  /** Boss health bar; null hides it. */
+  setBoss(nameKey: string | null, frac: number): void {
+    if (nameKey !== this.bossKey) {
+      this.bossKey = nameKey;
+      this.bossEl.classList.toggle('hidden', !nameKey);
+      if (nameKey) this.bossName.textContent = t(nameKey);
+    }
+    if (nameKey) this.bossFill.style.width = (Math.max(0, Math.min(1, frac)) * 100).toFixed(1) + '%';
   }
 
   objective(text: string): void {

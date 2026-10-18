@@ -122,6 +122,15 @@ const things: ThingDef[] = [
 
 export const LEVEL01: LevelData = {
   id: 'level01',
+  chapter: 1,
+  titleKey: 'ch1.title',
+  introKey: 'ch1.intro',
+  outroKey: 'ch1.outro',
+  next: 'level02',
+  startLoadout: { weapons: ['pistol'], bullets: 50, shells: 0, health: 100, armor: 0 },
+  completeVoice: 'v_complete',
+  ambience: { nukage: [51, 13], alarm: true },
+  dust: [3, 4, 32, 16],
   width: 68,
   height: 49,
   defaultWall: 'metalPanel',

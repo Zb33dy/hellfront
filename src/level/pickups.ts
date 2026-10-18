@@ -46,10 +46,11 @@ export function applyPickup(kind: PickupKind, p: Player, ammoMul: number): Picku
     case 'shellBox':
       return p.addAmmo('shells', am(PICKUPS.shellBox)) ? { msg: 'msg.shellBox', sound: 'pickup_ammo', flash: 'gold' } : null;
     case 'keyRed':
-    case 'keyBlue': {
-      const k: KeyColor = kind === 'keyRed' ? 'red' : 'blue';
+    case 'keyBlue':
+    case 'keyYellow': {
+      const k: KeyColor = kind === 'keyRed' ? 'red' : kind === 'keyBlue' ? 'blue' : 'yellow';
       p.keys.add(k);
-      return { msg: kind === 'keyRed' ? 'msg.keyRed' : 'msg.keyBlue', sound: 'pickup_key', flash: 'gold' };
+      return { msg: 'msg.' + kind, sound: 'pickup_key', flash: 'gold' };
     }
     case 'shotgun': {
       const had = p.weapons.has('shotgun');
@@ -65,4 +66,4 @@ export function applyPickup(kind: PickupKind, p: Player, ammoMul: number): Picku
   }
 }
 
-export const PICKUP_SCALE: Partial<Record<PickupKind, number>> = { keyRed: 1.1, keyBlue: 1.1, armor: 1.1 };
+export const PICKUP_SCALE: Partial<Record<PickupKind, number>> = { keyRed: 1.1, keyBlue: 1.1, keyYellow: 1.1, armor: 1.1 };

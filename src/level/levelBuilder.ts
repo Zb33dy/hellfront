@@ -1,6 +1,6 @@
 import { Color3, Mesh, type Scene, type ShaderMaterial, Vector3 } from '@babylonjs/core';
 import { CELL } from '../core/config';
-import { getAtlasTexture, getNukageTexture, TILE_NAMES, type TileName } from '../gfx/textures';
+import { getAtlasTexture, getLavaTexture, getNukageTexture, TILE_NAMES, type TileName } from '../gfx/textures';
 import { createRetroMaterial } from '../gfx/retroMaterial';
 import type { LightManager } from '../gfx/lightManager';
 import { CellKind, Grid } from './grid';
@@ -44,6 +44,7 @@ export function buildLevel(data: LevelData, scene: Scene, lights: LightManager, 
 
   const geo = new GeoBuilder();
   const nuk = new GeoBuilder();
+  const lav = new GeoBuilder();
 
   const tileOf = (i: number): TileName => TILE_NAMES[i];
 
@@ -59,7 +60,7 @@ export function buildLevel(data: LevelData, scene: Scene, lights: LightManager, 
       const x0 = cx * C, z0 = cy * C, x1 = x0 + C, z1 = z0 + C;
 
       if (k === CellKind.Nukage) {
-        nuk.face([x0, f, z0], [C, 0, 0], [0, 0, C], [0, 1, 0], 'nukage', (x, _y, z) => [x / (C * 2), z / (C * 2)]);
+        (zone.lava ? lav : nuk).face([x0, f, z0], [C, 0, 0], [0, 0, C], [0, 1, 0], 'nukage', (x, _y, z) => [x / (C * 2), z / (C * 2)]);
       } else if (k !== CellKind.Lift) {
         geo.face([x0, f, z0], [C, 0, 0], [0, 0, C], [0, 1, 0], zone.floorTex, (x, _y, z) => [x / C, z / C]);
       }
@@ -197,6 +198,18 @@ export function buildLevel(data: LevelData, scene: Scene, lights: LightManager, 
   const levelMesh = geo.toMesh('level', scene);
   levelMesh.material = atlasMat;
   meshes.push(levelMesh);
+  if (lav.vertexCount > 0) {
+    lav.bake((x, y, z, nx, ny, nz) => {
+      const c = bakeLight(x, y, z, nx, ny, nz);
+      return [c[0] * 0.6 + 0.35, c[1] * 0.6 + 0.12, c[2] * 0.6 + 0.04];
+    });
+    const lavaMat = createRetroMaterial('lavaMat', scene, getLavaTexture(scene), 'nukage');
+    lavaMat.setFloat('emissiveBoost', 1.1);
+    lights.register(lavaMat);
+    const lm = lav.toMesh('lava', scene, false);
+    lm.material = lavaMat;
+    meshes.push(lm);
+  }
   if (nuk.vertexCount > 0) {
     const nm = nuk.toMesh('nukage', scene, false);
     nm.material = nukageMat;

@@ -24,10 +24,10 @@ export class LevelCompleteScreen {
 
   constructor(private sound: (s: UISound) => void, private onContinue: () => void) {}
 
-  show(stats: LevelStats): void {
+  show(stats: LevelStats, title: string): void {
     this.el.innerHTML = '';
     const box = h('div', { class: 'complete-box plate' });
-    box.append(h('div', { class: 'panel-title', text: t('complete.title') }));
+    box.append(h('div', { class: 'panel-title', text: title }));
     const mk = (label: string) => {
       const v = h('span', { text: '0%' });
       box.append(h('div', { class: 'stat' }, [h('span', { text: label }), v]));
@@ -78,19 +78,21 @@ export class ChapterEndScreen {
   readonly el = h('div', { class: 'screen overlay', id: 'chapter' });
   nav: MenuNav | null = null;
 
-  constructor(private sound: (s: UISound) => void, private onMenu: () => void) {}
+  constructor(private sound: (s: UISound) => void, private onMenu: () => void, private onNext: () => void) {}
 
-  show(): void {
+  show(title: string, body: string, hasNext: boolean): void {
     this.el.innerHTML = '';
     this.el.append(logo());
     const box = h('div', { class: 'complete-box plate' });
     box.style.marginTop = '30px';
-    box.append(h('div', { class: 'panel-title', text: t('chapter.title') }));
-    box.append(h('div', { class: 'chapter-body', html: t('chapter.body') }));
-    const b = button(t('chapter.menu'), () => this.onMenu(), this.sound);
-    box.append(b);
+    box.append(h('div', { class: 'panel-title', text: title }));
+    box.append(h('div', { class: 'chapter-body', html: body }));
+    const btns: HTMLButtonElement[] = [];
+    if (hasNext) btns.push(button(t('chapter.next'), () => this.onNext(), this.sound));
+    btns.push(button(t('chapter.menu'), () => this.onMenu(), this.sound));
+    box.append(...btns);
     this.el.append(box);
-    this.nav = new MenuNav([b], this.sound, null);
+    this.nav = new MenuNav(btns, this.sound, null);
     this.el.classList.add('show');
   }
 

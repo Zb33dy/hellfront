@@ -1,3 +1,5 @@
+import { STORY_EN, STORY_TR } from './storyText';
+
 export type Lang = 'en' | 'tr';
 
 let current: Lang = 'en';
@@ -259,10 +261,14 @@ const tr: Dict = {
   'subs.speaker': 'KOMUTA',
 };
 
+Object.assign(en, STORY_EN);
+Object.assign(tr, STORY_TR);
 const dicts: Record<Lang, Dict> = { en, tr };
 
-export function t(key: string): string {
-  return dicts[current][key] ?? en[key] ?? key;
+export function t(key: string, params?: Record<string, string | number>): string {
+  let s = dicts[current][key] ?? en[key] ?? key;
+  if (params) for (const [k, v] of Object.entries(params)) s = s.split('{' + k + '}').join(String(v));
+  return s;
 }
 
 export const TIP_KEYS = ['tip.1', 'tip.2', 'tip.3', 'tip.4', 'tip.5', 'tip.6', 'tip.7', 'tip.8'];

@@ -3,7 +3,9 @@ import { t } from '../core/i18n';
 import { button, h, MenuNav, type UISound } from './dom';
 
 export interface MenuCallbacks {
-  onNewGame(d: Difficulty): void;
+  onNewGame(d: Difficulty, levelId: string): void;
+  /** Chapter select entries. */
+  chapters(): { id: string; label: string }[];
   onContinue(): void;
   onSettings(): void;
   hasSave(): boolean;
@@ -20,7 +22,9 @@ export function logo(): HTMLElement {
 export class MenuScreen {
   readonly el = h('div', { class: 'screen', id: 'menu' });
   nav!: MenuNav;
-  private sub: 'none' | 'difficulty' | 'credits' | 'quit' = 'none';
+  private sub: 'none' | 'difficulty' | 'chapters' | 'credits' | 'quit' = 'none';
+  private chapNav!: MenuNav;
+  private pendingLevel = 'level01';
   private mainNav!: MenuNav;
   private diffNav!: MenuNav;
   private creditsNav!: MenuNav;
@@ -40,8 +44,12 @@ export class MenuScreen {
     const list = h('div', { class: 'menu-list' });
     const s = this.sound;
     const items = [
-      button(t('menu.new'), () => this.open('difficulty'), s),
+      button(t('menu.new'), () => {
+        this.pendingLevel = 'level01';
+        this.open('difficulty');
+      }, s),
       (this.continueBtn = button(t('menu.continue'), () => this.cb.onContinue(), s)),
+      button(t('menu.chapters'), () => this.open('chapters'), s),
       button(t('menu.settings'), () => this.cb.onSettings(), s),
       button(t('menu.credits'), () => this.open('credits'), s),
       button(t('menu.quit'), () => this.open('quit'), s),
@@ -56,12 +64,24 @@ export class MenuScreen {
     const dp = h('div', { class: 'sub-panel plate' });
     dp.append(h('div', { class: 'panel-title', text: t('menu.difficulty') }));
     const diffs: Difficulty[] = ['easy', 'normal', 'hard'];
-    const dItems = diffs.map((d) => button(t(`diff.${d}`), () => this.cb.onNewGame(d), s, t(`diff.${d}.d`)));
+    const dItems = diffs.map((d) => button(t(`diff.${d}`), () => this.cb.onNewGame(d, this.pendingLevel), s, t(`diff.${d}.d`)));
     const dBack = button(t('common.back'), () => this.open('none'), s);
     dp.append(...dItems, dBack);
     this.diffNav = new MenuNav([...dItems, dBack], s, () => this.open('none'));
     this.diffNav.focus(1, true);
     this.panels.difficulty = dp;
+
+    // chapter select
+    const chp = h('div', { class: 'sub-panel plate' });
+    chp.append(h('div', { class: 'panel-title', text: t('menu.chapters') }));
+    const cItems = this.cb.chapters().map((c) => button(c.label, () => {
+      this.pendingLevel = c.id;
+      this.open('difficulty');
+    }, s));
+    const chBack = button(t('common.back'), () => this.open('none'), s);
+    chp.append(...cItems, chBack);
+    this.chapNav = new MenuNav([...cItems, chBack], s, () => this.open('none'));
+    this.panels.chapters = chp;
 
     // credits
     const cp = h('div', { class: 'sub-panel plate' });
@@ -82,7 +102,7 @@ export class MenuScreen {
     this.quitNav = new MenuNav([qBack], s, () => this.open('none'));
     this.panels.quit = qp;
 
-    this.el.append(dp, cp, qp);
+    this.el.append(dp, chp, cp, qp);
     this.refresh();
     this.open(this.sub, true);
   }
@@ -91,10 +111,10 @@ export class MenuScreen {
     this.continueBtn.classList.toggle('disabled', !this.cb.hasSave());
   }
 
-  open(which: 'none' | 'difficulty' | 'credits' | 'quit', silent = false): void {
+  open(which: 'none' | 'difficulty' | 'chapters' | 'credits' | 'quit', silent = false): void {
     this.sub = which;
     for (const [k, p] of Object.entries(this.panels)) p.classList.toggle('show', k === which);
-    this.nav = which === 'difficulty' ? this.diffNav : which === 'credits' ? this.creditsNav : which === 'quit' ? this.quitNav : this.mainNav;
+    this.nav = which === 'difficulty' ? this.diffNav : which === 'chapters' ? this.chapNav : which === 'credits' ? this.creditsNav : which === 'quit' ? this.quitNav : this.mainNav;
     if (which === 'quit' && !silent) {
       // Browsers only allow closing tabs opened by script; show the message either way.
       try {

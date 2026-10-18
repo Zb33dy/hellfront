@@ -1,0 +1,130 @@
+// Campaign story: chapter cards, objectives, boss names. Merged into the i18n dictionaries.
+//
+// Arc: Hangar Seven sits on top of the Aurora dig, a shaft the company sank toward a signal that was
+// never natural. Chapter 1 the hangar falls; 2 the forge below has been turned into a factory for
+// armored husks; 3 the marine reaches the breach and destroys its core, only to learn it was a seal;
+// 4 on the far side lie the ashes of the lost Aurora expedition; 5 the Sovereign that called them all.
+
+export const STORY_EN: Record<string, string> = {
+  'menu.subtitle': 'THE HANGAR SEVEN INCIDENT',
+  'menu.chapters': 'CHAPTERS',
+  'chapter.n': 'CHAPTER {n}',
+  'chapter.end': 'END OF CHAPTER {n}',
+  'chapter.next': 'NEXT CHAPTER',
+  'complete.cleared': 'CLEARED',
+  'ending.title': 'THE END',
+
+  'ch1.title': 'HANGAR SEVEN',
+  'ch1.intro': 'Hangar Seven went dark forty minutes ago. The garrison stopped answering mid-sentence.<br>You are the only marine Command could reach. Callsign: <b>HELLFRONT</b>.',
+  'ch1.outro': 'The hangar falls silent. In the control room you find the dig manifests: the base was never a hangar.<br>It is a lid on a shaft called <b>AURORA</b>, and the signal is coming from the bottom of it.',
+
+  'ch2.title': 'THE FOUNDRY',
+  'ch2.intro': 'The freight lift drops you into the forge decks. The furnaces are still running — nobody has fed them in three days.<br>Whatever is down here is building something.',
+  'ch2.outro': 'The Warden collapses into its own slag. Behind it, a freight shaft plunges into red light.<br>Command goes quiet for a long moment. Then: <i>"Go. Finish it."</i>',
+
+  'ch3.title': 'THE BREACH',
+  'ch3.intro': 'The bottom of the Aurora shaft. The rock here is warm, and it breathes.<br>At the center of the chamber the breach core beats like a heart. Destroy it and the rift should close.',
+  'ch3.outro': 'The core bursts — and the breach does not close. It <b>opens</b>.<br>The core was never the source. It was a seal. The floor gives way, and the red light swallows you whole.',
+
+  'ch4.title': 'THE ASHEN GATE',
+  'ch4.intro': 'You wake in ash under a black sun. Your radio still crackles: somehow Command can hear you.<br>Ahead, half-buried, stand the prefab domes of the <b>Aurora expedition</b> — lost forty years ago.',
+  'ch4.outro': 'The expedition logs end with a single name, written over and over: <b>THE SOVEREIGN</b>.<br>It called them here. It called the dig. It called you. And its throne is just beyond the gate.',
+
+  'ch5.title': 'THRONE OF ASH',
+  'ch5.intro': 'The citadel rises out of the ash like a broken crown. Every demon you have killed was a door it opened.<br>Command is trying to hold a return window open on your beacon. Kill the Sovereign, and come home.',
+  'ch5.outro': 'The Sovereign falls, and the sky of ash cracks like glass. Through the crack: floodlights, concrete, a hangar door.<br>You step through. Behind you the rift folds shut with a sound like a held breath let go.<br><br>Hangar Seven is sealed. The Aurora shaft is filled with concrete a week later.<br>Nobody asks what the marine called <b>HELLFRONT</b> saw down there. Nobody wants the answer.<br><br><b>THANK YOU FOR PLAYING.</b>',
+
+  'boss.warden': 'THE WARDEN — FORGE MASTER',
+  'boss.core': 'BREACH CORE',
+  'boss.sovereign': 'THE SOVEREIGN',
+
+  'msg.keyYellow': 'Picked up the YELLOW keycard.',
+  'msg.needYellow': 'You need the YELLOW keycard.',
+
+  'obj2.forge': 'Descend into the foundry.',
+  'obj2.yellow': 'Find the forge override (yellow key) in the east vat.',
+  'obj2.yellowDoor': 'Open the yellow door north of the slag channel.',
+  'obj2.boss': 'Destroy the Warden.',
+  'obj2.exit': 'Take the freight shaft down.',
+
+  'obj3.descend': 'Push through the ossuary.',
+  'obj3.blue': 'Retrieve the blue clearance card in the rift.',
+  'obj3.blueDoor': 'Open the blue door in the ossuary.',
+  'obj3.core': 'Destroy the breach core.',
+  'obj3.exit': 'Reach the transit pad.',
+
+  'obj4.explore': 'Find the Aurora expedition camp.',
+  'obj4.red': 'Recover the red seal from the expedition labs.',
+  'obj4.redDoor': 'Open the red gate.',
+  'obj4.blue': 'Take the blue seal from the bone pit.',
+  'obj4.blueDoor': 'Open the blue gate to the causeway.',
+  'obj4.exit': 'Cross the causeway to the citadel.',
+
+  'obj5.climb': 'Climb the citadel.',
+  'obj5.yellow': 'Take the yellow sigil from the lava cloister.',
+  'obj5.throne': 'Enter the throne hall.',
+  'obj5.boss': 'Kill the Sovereign.',
+  'obj5.exit': 'Step through the return window.',
+};
+
+export const STORY_TR: Record<string, string> = {
+  'menu.subtitle': 'HANGAR YEDİ VAKASI',
+  'menu.chapters': 'BÖLÜMLER',
+  'chapter.n': 'BÖLÜM {n}',
+  'chapter.end': 'BÖLÜM {n} SONU',
+  'chapter.next': 'SONRAKİ BÖLÜM',
+  'complete.cleared': 'TEMİZLENDİ',
+  'ending.title': 'SON',
+
+  'ch1.title': 'HANGAR YEDİ',
+  'ch1.intro': 'Hangar Yedi kırk dakika önce karardı. Garnizon bir cümlenin ortasında cevap vermeyi kesti.<br>Komuta\'nın ulaşabildiği tek asker sensin. Çağrı kodu: <b>HELLFRONT</b>.',
+  'ch1.outro': 'Hangar sessizliğe gömülüyor. Kontrol odasında kazı kayıtlarını buluyorsun: burası hiç hangar olmamış.<br><b>AURORA</b> adlı bir kuyunun kapağıymış, ve sinyal o kuyunun dibinden geliyor.',
+
+  'ch2.title': 'DÖKÜMHANE',
+  'ch2.intro': 'Yük asansörü seni dökümhane katlarına indiriyor. Fırınlar hâlâ yanıyor — üç gündür kimse onları beslemedi.<br>Aşağıda her ne varsa, bir şey inşa ediyor.',
+  'ch2.outro': 'Gardiyan kendi cürufunun içine çöküyor. Arkasında, kızıl ışığa dalan bir yük kuyusu var.<br>Komuta uzun bir süre susuyor. Sonra: <i>"Git. Bitir şunu."</i>',
+
+  'ch3.title': 'YARIK',
+  'ch3.intro': 'Aurora kuyusunun dibi. Buradaki kaya sıcak, ve nefes alıyor.<br>Odanın ortasında yarık çekirdeği bir kalp gibi atıyor. Onu yok edersen yarık kapanmalı.',
+  'ch3.outro': 'Çekirdek patlıyor — ama yarık kapanmıyor. <b>Açılıyor</b>.<br>Çekirdek kaynak değilmiş. Bir mühürmüş. Zemin çöküyor ve kızıl ışık seni bütünüyle yutuyor.',
+
+  'ch4.title': 'KÜL KAPISI',
+  'ch4.intro': 'Kara bir güneşin altında, külün içinde uyanıyorsun. Telsizin hâlâ cızırdıyor: Komuta seni bir şekilde duyabiliyor.<br>İleride, yarı gömülü halde, kırk yıl önce kaybolan <b>Aurora seferinin</b> kubbeleri duruyor.',
+  'ch4.outro': 'Sefer kayıtları tek bir isimle bitiyor, tekrar tekrar yazılmış: <b>HÜKÜMDAR</b>.<br>Onları buraya o çağırdı. Kazıyı o çağırdı. Seni o çağırdı. Ve tahtı kapının hemen ardında.',
+
+  'ch5.title': 'KÜL TAHTI',
+  'ch5.intro': 'Hisar külün içinden kırık bir taç gibi yükseliyor. Öldürdüğün her iblis onun açtığı bir kapıydı.<br>Komuta, işaretçin üzerinden bir dönüş penceresini açık tutmaya çalışıyor. Hükümdar\'ı öldür ve eve dön.',
+  'ch5.outro': 'Hükümdar düşüyor ve külden gökyüzü cam gibi çatlıyor. Çatlağın ardında: projektörler, beton, bir hangar kapısı.<br>İçinden geçiyorsun. Arkanda yarık, tutulan bir nefesin bırakılması gibi bir sesle kapanıyor.<br><br>Hangar Yedi mühürlendi. Aurora kuyusu bir hafta sonra betonla dolduruldu.<br>Kimse <b>HELLFRONT</b> çağrı kodlu askerin orada ne gördüğünü sormadı. Kimse cevabı bilmek istemedi.<br><br><b>OYNADIĞIN İÇİN TEŞEKKÜRLER.</b>',
+
+  'boss.warden': 'GARDİYAN — DÖKÜM USTASI',
+  'boss.core': 'YARIK ÇEKİRDEĞİ',
+  'boss.sovereign': 'HÜKÜMDAR',
+
+  'msg.keyYellow': 'SARI anahtar kartı aldın.',
+  'msg.needYellow': 'SARI anahtar kart gerekli.',
+
+  'obj2.forge': 'Dökümhaneye in.',
+  'obj2.yellow': 'Doğudaki kazanda döküm kilidini (sarı kart) bul.',
+  'obj2.yellowDoor': 'Cüruf kanalının kuzeyindeki sarı kapıyı aç.',
+  'obj2.boss': 'Gardiyan\'ı yok et.',
+  'obj2.exit': 'Yük kuyusundan aşağı in.',
+
+  'obj3.descend': 'Kemikliğin içinden ilerle.',
+  'obj3.blue': 'Yarıktaki mavi yetki kartını al.',
+  'obj3.blueDoor': 'Kemikliğin mavi kapısını aç.',
+  'obj3.core': 'Yarık çekirdeğini yok et.',
+  'obj3.exit': 'Transit platformuna ulaş.',
+
+  'obj4.explore': 'Aurora sefer kampını bul.',
+  'obj4.red': 'Sefer laboratuvarlarından kırmızı mührü al.',
+  'obj4.redDoor': 'Kırmızı kapıyı aç.',
+  'obj4.blue': 'Kemik çukurundan mavi mührü al.',
+  'obj4.blueDoor': 'Geçide açılan mavi kapıyı aç.',
+  'obj4.exit': 'Geçidi aşıp hisara ulaş.',
+
+  'obj5.climb': 'Hisara tırman.',
+  'obj5.yellow': 'Lav avlusundan sarı mührü al.',
+  'obj5.throne': 'Taht salonuna gir.',
+  'obj5.boss': 'Hükümdar\'ı öldür.',
+  'obj5.exit': 'Dönüş penceresinden geç.',
+};

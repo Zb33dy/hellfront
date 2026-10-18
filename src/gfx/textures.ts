@@ -7,7 +7,7 @@ export const TILE_NAMES = [
   'metalPanel', 'techWall', 'concrete', 'hazard', 'hangarFloor', 'ceilPanel', 'ceilGrid', 'floorGrate',
   'crate', 'shipHull', 'shipWindow', 'bigDoor', 'door', 'doorRed', 'doorBlue', 'bloodWall',
   'computer', 'lightPanel', 'secretWall', 'pipeWall', 'rust', 'concreteBlood', 'liftTop', 'exitPad',
-  'closet', 'nukage', 'doorYellow', 'lampMetal',
+  'closet', 'nukage', 'doorYellow', 'lampMetal', 'flesh', 'hellstone', 'lava',
 ] as const;
 export type TileName = (typeof TILE_NAMES)[number];
 
@@ -286,6 +286,34 @@ const painters: Record<TileName, Painter> = {
   },
   nukage: (p) => paintNukage(p),
   lampMetal: (p) => metalPanel(p, [70, 72, 78]),
+  flesh: (p) => {
+    const n = makeNoise(401, 8);
+    for (let y = 0; y < 64; y++)
+      for (let x = 0; x < 64; x++) {
+        const v = n(x / 6, y / 6);
+        const vein = Math.abs(Math.sin((x + n(x / 10, y / 10) * 30) * 0.25)) < 0.12;
+        p.set(x, y, vein ? [70, 10, 14] : [120 + v * 70, 30 + v * 25, 34 + v * 20]);
+      }
+    for (let k = 0; k < 5; k++) {
+      const cx = p.rand() * 64, cy = p.rand() * 64;
+      for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) if (i * i + j * j <= 4) { p.set(cx + i, cy + j, [255, 120, 40]); p.glow(cx + i, cy + j, 160); }
+    }
+    p.grime(0.4, makeNoise(402, 8));
+  },
+  hellstone: (p) => {
+    p.fillNoise([46, 34, 34], 0.15, makeNoise(411, 8), 0.4);
+    for (let y = 0; y < 64; y += 16) {
+      p.hline(0, y, 64, [20, 12, 12]);
+      for (let x = (y / 16) % 2 ? 8 : 0; x < 64; x += 16) p.vline(x, y, 16, [20, 12, 12]);
+    }
+    let x = 10, y = 0;
+    for (let i = 0; i < 64; i++) {
+      p.set(x, y, [255, 90, 20]); p.glow(x, y, 220);
+      y++; if (p.rand() < 0.4) x += p.rand() < 0.5 ? -1 : 1;
+    }
+    p.grime(0.5, makeNoise(412, 8));
+  },
+  lava: (p) => paintLava(p),
 };
 
 function doorKey(p: TilePainter, c: C3) {
@@ -321,6 +349,30 @@ function buildAtlas(): Uint8Array {
       for (let x = 0; x < TILE_PX; x++) buf[((oy + y) * ATLAS_W + ox + x) * 4 + 3] = 255 - p.emissive[y * TILE_PX + x];
   });
   return buf;
+}
+
+function paintLava(p: TilePainter) {
+  const n1 = makeNoise(501, 8);
+  const n2 = makeNoise(502, 16);
+  for (let y = 0; y < 64; y++)
+    for (let x = 0; x < 64; x++) {
+      const v = n1(x / 8, y / 8) * 0.6 + n2(x / 4, y / 4) * 0.4;
+      const b = Math.pow(v, 1.8);
+      const crust = v < 0.35;
+      p.set(x, y, crust ? [50 + 40 * b, 18, 10] : [200 + 55 * b, 70 + 150 * b, 10 + 60 * b * b]);
+    }
+}
+
+let lavaData: Uint8Array | null = null;
+export function getLavaTexture(scene: Scene): RawTexture {
+  if (!lavaData) {
+    lavaData = new Uint8Array(64 * 64 * 4);
+    paintLava(new TilePainter(lavaData, 64, 0, 0, 64, 11));
+  }
+  const t = RawTexture.CreateRGBATexture(lavaData, 64, 64, scene, false, false, Texture.NEAREST_SAMPLINGMODE);
+  t.wrapU = Texture.WRAP_ADDRESSMODE;
+  t.wrapV = Texture.WRAP_ADDRESSMODE;
+  return t;
 }
 
 function buildNukage(): Uint8Array {

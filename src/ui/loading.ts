@@ -12,10 +12,11 @@ export class LoadingScreen {
   private tipTimer = 0;
   isReady = false;
 
-  show(): void {
+  show(story?: { title: string; body: string }): void {
     this.isReady = false;
     this.el.innerHTML = '';
     this.el.append(logo());
+    if (story) this.el.append(h('div', { class: 'story-card plate' }, [h('div', { class: 'story-title', text: story.title }), h('div', { class: 'story-body', html: story.body })]));
     const box = h('div', { class: 'loading-box plate' });
     this.label = h('div', { class: 'loading-label', text: t('loading.title') });
     const prog = h('div', { class: 'progress' });

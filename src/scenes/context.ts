@@ -1,5 +1,5 @@
 import type { Vector3 } from '@babylonjs/core';
-import type { DIFFICULTY, HitscanWeaponDef, MeleeWeaponDef } from '../core/config';
+import type { DIFFICULTY, EnemyKind, HitscanWeaponDef, MeleeWeaponDef } from '../core/config';
 import type { SoundId } from '../audio/audioManifest';
 import type { PlayOpts, SoundHandle } from '../audio/audioManager';
 import type { World } from '../level/world';
@@ -45,4 +45,8 @@ export interface GameCtx {
   /** Chainsword/melee sweep in front of the player. */
   playerMelee(def: MeleeWeaponDef): 'enemy' | 'wall' | 'none';
   muzzleFlash(big: boolean): void;
+  /** Spawns a monster mid-fight (boss summons). World coordinates. */
+  summon(kind: EnemyKind, x: number, z: number): Enemy | null;
+  /** Adds velocity to the player (shockwaves). */
+  pushPlayer(v: Vector3): void;
 }

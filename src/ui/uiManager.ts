@@ -17,6 +17,7 @@ export interface UICallbacks extends MenuCallbacks {
   death: DeathCallbacks;
   onCompleteContinue(): void;
   onChapterMenu(): void;
+  onChapterNext(): void;
   onLoadingConfirm(): void;
 }
 
@@ -51,7 +52,7 @@ export class UIManager {
     this.pause = new PauseScreen(cb.pause, sound);
     this.death = new DeathScreen(cb.death, sound);
     this.complete = new LevelCompleteScreen(sound, cb.onCompleteContinue);
-    this.chapter = new ChapterEndScreen(sound, cb.onChapterMenu);
+    this.chapter = new ChapterEndScreen(sound, cb.onChapterMenu, cb.onChapterNext);
     this.loading = new LoadingScreen();
     root.append(this.hud.el, this.subtitles.el, this.debug.el, this.menu.el, this.pause.el, this.death.el, this.complete.el, this.chapter.el, this.loading.el, this.settings.el);
 

@@ -11,6 +11,8 @@ export interface EnemySounds {
   pain: SoundId;
   death: SoundId;
   idle?: SoundId;
+  /** Pitch shift so new monsters get their own voice from shared samples. */
+  pitch?: number;
 }
 
 /** Shared monster body + state. Behaviour lives in ai/enemyAI.ts, attacks in the subclasses. */
@@ -121,16 +123,17 @@ export abstract class Enemy {
 
   damage(amount: number, dir: Vector3, kind: DamageKind, ctx: GameCtx): void {
     if (!this.alive) return;
+    amount *= this.def.dmgMul?.[kind] ?? 1;
     this.hp -= amount;
     this.painFlash = 0.12;
-    const mass = this.kind === 'pinky' ? 0.35 : this.kind === 'imp' ? 0.7 : 1;
+    const mass = this.def.mass ?? (this.kind === 'imp' ? 0.7 : 1);
     this.knock.addInPlace(new Vector3(dir.x, 0, dir.z).normalize().scale(Math.min(amount, 60) * 0.11 * mass));
     if (this.hp <= 0) {
       const over = -this.hp;
       this.gibbed = over >= this.def.gibThreshold || (kind === 'blast' && over >= this.def.gibThreshold * 0.5) || (kind === 'saw' && this.kind !== 'pinky' && over > 4 && Math.random() < 0.3);
       this.setState('dying');
       this.deathT = 0;
-      ctx.sound(this.gibbed ? 'gib' : this.sounds.death, this.pos);
+      ctx.sound(this.gibbed ? 'gib' : this.sounds.death, this.pos, { pitch: this.gibbed ? 1 : this.sounds.pitch });
       if (this.gibbed) ctx.sound(this.sounds.death, this.pos, { volume: 0.6 });
       return;
     }
@@ -141,7 +144,7 @@ export abstract class Enemy {
     const resist = this.state === 'attack' && this.kind === 'pinky' && this.attackPhase === 2;
     if (!resist && Math.random() < this.def.painChance) {
       this.setState('pain');
-      ctx.sound(this.sounds.pain, this.pos);
+      ctx.sound(this.sounds.pain, this.pos, { pitch: this.sounds.pitch });
     }
   }
 
@@ -149,7 +152,7 @@ export abstract class Enemy {
     if (this.state === 'dormant' || !this.alive) return;
     if (this.state === 'idle') {
       this.setState('alert');
-      ctx.sound(this.sounds.alert, this.pos);
+      ctx.sound(this.sounds.alert, this.pos, { pitch: this.sounds.pitch });
     }
   }
 }
