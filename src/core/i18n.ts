@@ -76,7 +76,7 @@ const en: Dict = {
   'act.cycle': 'Cycle weapons',
   'credits.title': 'CREDITS',
   'credits.body':
-    '<b>HUNK DE POITIERS</b><br><br><br>SPECIAL THANKS<br><br>ensomg<br>suzume.w<br>pntr<br>hakulshi<br>ibo0<br>supseru',
+    'CREATED BY<br><br><b>HUNK DE POITIERS</b><br><br><br>SPECIAL THANKS<br><br>ensomg<br>suzume.w<br>pntr<br>hakulshi<br>ibo0<br>supseru',
   'pause.title': 'PAUSED',
   'pause.resume': 'RESUME',
   'pause.restart': 'RESTART LEVEL',
@@ -197,7 +197,7 @@ const tr: Dict = {
   'act.cycle': 'Silah değiştir',
   'credits.title': 'YAPIMCILAR',
   'credits.body':
-    '<b>HUNK DE POITIERS</b><br><br><br>ÖZEL TEŞEKKÜRLER<br><br>ensomg<br>suzume.w<br>pntr<br>hakulshi<br>ibo0<br>supseru',
+    'YAPIMCI<br><br><b>HUNK DE POITIERS</b><br><br><br>ÖZEL TEŞEKKÜRLER<br><br>ensomg<br>suzume.w<br>pntr<br>hakulshi<br>ibo0<br>supseru',
   'pause.title': 'DURAKLATILDI',
   'pause.resume': 'DEVAM',
   'pause.restart': 'BÖLÜMÜ YENİDEN BAŞLAT',
