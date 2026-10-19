@@ -68,6 +68,8 @@ export const CAMPAIGN_LINES: VoiceLine[] = [
     'Sarı mühür lav avlusunda. Adımına dikkat et.'),
   v('v5_key', 'Sigil acquired. The throne hall is open. Window at seventy percent.',
     'Mühür alındı. Taht salonu açık. Pencere yüzde yetmişte.'),
+  v('v5_sniper', 'Anti-materiel rifle. One round, one hole in anything. Save it for the big one.',
+    'Ağır keskin nişancı tüfeği. Tek mermi, her şeyde tek delik. Büyüğüne sakla.'),
   v('v5_throne', 'There it is. The Sovereign. Everything that came through the rift answers to it.',
     'İşte orada. Hükümdar. Yarıktan gelen her şey ona hizmet ediyor.'),
   v('v5_phase', 'It is calling the ground itself! Watch the fire under your feet!',

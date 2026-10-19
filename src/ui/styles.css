@@ -453,7 +453,7 @@ html, body {
   letter-spacing: 1px;
   text-shadow: 1px 1px 0 #000;
 }
-.arms { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(var(--px) * 2); }
+.arms { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(var(--px) * 2); }
 .arms span {
   font-family: var(--font-head);
   font-size: calc(var(--hud-h) * 0.17);
@@ -702,3 +702,35 @@ html, body {
   margin-bottom: 10px;
 }
 .story-body { font-size: 24px; line-height: 1.25; color: #e3d2bb; }
+
+.focus-meter {
+  position: absolute;
+  left: 18px; bottom: calc(var(--hud-h) + 14px);
+  display: flex; align-items: center; gap: 8px;
+  pointer-events: none;
+  opacity: .8;
+}
+.focus-meter b { font-family: var(--font-head); font-size: 11px; color: #9fd8ff; text-shadow: 1px 1px 0 #000; font-weight: normal; }
+.focus-track { width: 150px; height: 9px; border: 2px solid #0b0d12; background: #10161e; box-shadow: 0 0 0 1px #2a4a66; }
+.focus-track i { display: block; height: 100%; width: 100%; background: linear-gradient(#bfe6ff, #3b8fd6); transition: width .1s; }
+.focus-meter.ready .focus-track { box-shadow: 0 0 0 1px #7cc8ff, 0 0 10px #3b8fd6; }
+.focus-meter.active { opacity: 1; }
+.focus-meter.active .focus-track i { background: linear-gradient(#ffffff, #7cc8ff); }
+.slowmo-overlay {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .25s;
+  background: radial-gradient(ellipse at center, rgba(80,140,220,0) 45%, rgba(40,90,170,.38) 100%);
+  mix-blend-mode: screen;
+}
+.slowmo-overlay.show { opacity: 1; }
+.scope-overlay { position: absolute; inset: 0; pointer-events: none; display: none; }
+.scope-overlay.show { display: block; }
+.scope-overlay i {
+  position: absolute; left: 50%; top: 50%;
+  width: 78vmin; height: 78vmin; transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 200vmax #000, inset 0 0 40px 12px rgba(0,0,0,.85);
+  background:
+    linear-gradient(#000, #000) center / 2px 100% no-repeat,
+    linear-gradient(#000, #000) center / 100% 2px no-repeat;
+}
+#hud.scoped .viewmodel, #hud.scoped .crosshair { display: none; }

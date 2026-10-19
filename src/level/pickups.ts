@@ -18,7 +18,7 @@ export interface PickupResult {
   msg: string;
   sound: SoundId;
   flash: 'gold';
-  weapon?: 'shotgun' | 'chainsword';
+  weapon?: 'shotgun' | 'chainsword' | 'sniper';
 }
 
 /** Applies a pickup to the player. Returns null if it can't be taken (e.g. full health). */
@@ -58,6 +58,16 @@ export function applyPickup(kind: PickupKind, p: Player, ammoMul: number): Picku
       p.addAmmo('shells', am(PICKUPS.shotgunShells));
       return { msg: 'msg.shotgun', sound: 'pickup_weapon', flash: 'gold', weapon: had ? undefined : 'shotgun' };
     }
+    case 'rounds':
+      return p.addAmmo('rounds', am(PICKUPS.rounds)) ? { msg: 'msg.rounds', sound: 'pickup_ammo', flash: 'gold' } : null;
+    case 'grenades':
+      return p.addAmmo('grenades', PICKUPS.grenades) ? { msg: 'msg.grenades', sound: 'pickup_ammo', flash: 'gold' } : null;
+    case 'sniper': {
+      const had = p.weapons.has('sniper');
+      p.weapons.add('sniper');
+      p.addAmmo('rounds', am(PICKUPS.sniperRounds));
+      return { msg: 'msg.sniper', sound: 'pickup_weapon', flash: 'gold', weapon: had ? undefined : 'sniper' };
+    }
     case 'chainsword': {
       const had = p.weapons.has('chainsword');
       p.weapons.add('chainsword');
@@ -66,4 +76,4 @@ export function applyPickup(kind: PickupKind, p: Player, ammoMul: number): Picku
   }
 }
 
-export const PICKUP_SCALE: Partial<Record<PickupKind, number>> = { keyRed: 1.1, keyBlue: 1.1, keyYellow: 1.1, armor: 1.1 };
+export const PICKUP_SCALE: Partial<Record<PickupKind, number>> = { keyRed: 1.1, keyBlue: 1.1, keyYellow: 1.1, armor: 1.1, sniper: 1.15 };

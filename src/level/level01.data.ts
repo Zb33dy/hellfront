@@ -60,6 +60,7 @@ const things: ThingDef[] = [
   { kind: 'imp', x: 22.2, y: 7.4, wave: 'hangarKey', teleport: true, skill: 'nh' },
   // Hangar items
   { kind: 'shells', x: 5.3, y: 5.4 },
+  { kind: 'grenades', x: 32.4, y: 17.2 },
   { kind: 'shellBox', x: 32.4, y: 18.4 },
   { kind: 'healthLarge', x: 17.5, y: 18.5 },
   { kind: 'bulletBox', x: 4.2, y: 12.3 },

@@ -150,3 +150,48 @@ export function eruptionMark(k: number): Pix {
   s.ell(20, 10, 5, 2, glow(255, 240, 200, 1), 0);
   return s;
 }
+
+// ------------------------------------------------------------------ Sniper rifle, rounds, grenades (pickups + thrown)
+
+export function sniperPickup(): Pix {
+  const s = new Pix(70, 18, 95);
+  s.rect(2, 8, 44, 3, [52, 54, 60]);
+  s.rect(0, 7, 4, 5, [40, 40, 46]);
+  s.rect(26, 3, 16, 4, [30, 32, 36]);
+  s.set(27, 4, glow(90, 160, 255, 1));
+  s.rect(40, 7, 12, 6, [70, 74, 82]);
+  s.poly([[50, 6], [62, 6], [69, 13], [66, 17], [56, 14], [50, 13]], [44, 46, 40]);
+  s.rect(44, 13, 3, 4, [40, 40, 44]);
+  s.finish();
+  return s;
+}
+
+export function roundsBox(): Pix {
+  const s = new Pix(22, 16, 96);
+  s.rect(1, 6, 20, 9, [70, 76, 56]);
+  s.rect(3, 9, 16, 3, [200, 190, 140]);
+  for (let x = 3; x < 19; x += 4) {
+    s.rect(x, 0, 2, 7, [210, 170, 70]);
+    s.rect(x, 0, 2, 2, [150, 150, 160]);
+  }
+  s.finish();
+  return s;
+}
+
+export function grenadeSprite(lit: boolean): Pix {
+  const s = new Pix(10, 12, 97);
+  s.ell(5, 7, 4, 4.5, [70, 84, 56]);
+  s.rect(3, 1, 4, 2, [150, 150, 160]);
+  s.set(7, 2, [190, 190, 200]);
+  for (let y = 5; y < 11; y += 2) s.set(5, y, [40, 50, 34]);
+  if (lit) s.set(5, 1, glow(255, 60, 40, 1));
+  s.finish();
+  return s;
+}
+
+export function grenadePickup(): Pix {
+  const s = new Pix(24, 14, 98);
+  s.blit(grenadeSprite(false), 1, 1);
+  s.blit(grenadeSprite(false), 12, 2);
+  return s;
+}

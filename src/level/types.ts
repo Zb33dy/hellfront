@@ -62,7 +62,7 @@ export interface LightDef {
 
 export type PickupKind =
   | 'healthSmall' | 'healthLarge' | 'armor' | 'bulletClip' | 'bulletBox' | 'shells' | 'shellBox'
-  | 'keyRed' | 'keyBlue' | 'keyYellow' | 'shotgun' | 'chainsword';
+  | 'keyRed' | 'keyBlue' | 'keyYellow' | 'shotgun' | 'chainsword' | 'sniper' | 'rounds' | 'grenades';
 
 export type PropKind = 'barrel' | 'lamp' | 'techColumn' | 'corpse';
 
@@ -120,9 +120,11 @@ export interface SecretDef {
 }
 
 export interface Loadout {
-  weapons: ('pistol' | 'shotgun' | 'chainsword')[];
+  weapons: ('pistol' | 'shotgun' | 'chainsword' | 'sniper')[];
   bullets: number;
   shells: number;
+  rounds?: number;
+  grenades?: number;
   health: number;
   armor: number;
 }

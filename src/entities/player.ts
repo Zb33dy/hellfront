@@ -31,7 +31,7 @@ export class Player {
   height = PLAYER.height;
   health = 100;
   armor = 0;
-  ammo: Record<AmmoType, number> = { bullets: PICKUPS.startBullets, shells: 0 };
+  ammo: Record<AmmoType, number> = { bullets: PICKUPS.startBullets, shells: 0, rounds: 0, grenades: 0 };
   weapons = new Set<WeaponId>(['pistol']);
   keys = new Set<KeyColor>();
   onGround = true;
@@ -82,7 +82,7 @@ export class Player {
   applyState(s: PlayerState): void {
     this.health = s.health;
     this.armor = s.armor;
-    this.ammo = { ...s.ammo };
+    this.ammo = Object.assign({ bullets: 0, shells: 0, rounds: 0, grenades: 0 }, s.ammo);
     this.weapons = new Set(s.weapons);
     this.keys = new Set(s.keys);
   }

@@ -11,6 +11,8 @@ export class Input {
   mouseDY = 0;
   wheel = 0;
   mouseDown = false;
+  /** Right mouse button (sniper scope). */
+  rightDown = false;
   mousePressed = false;
   locked = false;
   /** Called when the pointer lock is lost by the browser (e.g. Esc). */
@@ -39,6 +41,7 @@ export class Input {
       this.mouseDY += e.movementY;
     });
     window.addEventListener('mousedown', (e) => {
+      if (e.button === 2 && this.locked) this.rightDown = true;
       if (e.button !== 0) return;
       if (this.locked) {
         this.mouseDown = true;
@@ -47,6 +50,7 @@ export class Input {
     });
     window.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouseDown = false;
+      if (e.button === 2) this.rightDown = false;
     });
     window.addEventListener(
       'wheel',
@@ -60,6 +64,7 @@ export class Input {
       this.locked = document.pointerLockElement === this.canvas;
       if (was && !this.locked) {
         this.mouseDown = false;
+        this.rightDown = false;
         this.down.clear();
         this.onLockLost?.();
       }

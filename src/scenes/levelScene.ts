@@ -1,5 +1,5 @@
 import { Color3, Color4, FreeCamera, Scene, Vector3, type Engine } from '@babylonjs/core';
-import { CELL, DIFFICULTY, ENEMIES, PLAYER, AMMO_MAX, type Difficulty, type EnemyKind, type HitscanWeaponDef, type MeleeWeaponDef, type WeaponId } from '../core/config';
+import { CELL, DIFFICULTY, ENEMIES, PLAYER, AMMO_MAX, FOCUS, GRENADE, type Difficulty, type EnemyKind, type HitscanWeaponDef, type MeleeWeaponDef, type WeaponId } from '../core/config';
 import type { Input } from '../core/input';
 import { t } from '../core/i18n';
 import { rand } from '../core/util';
@@ -38,6 +38,7 @@ import { Wraith } from '../entities/wraith';
 import { Sovereign } from '../entities/sovereign';
 import type { PlayerState } from '../entities/player';
 import { Projectiles } from '../entities/projectile';
+import { Grenades } from '../entities/grenade';
 import { Barrel, type Prop } from '../entities/barrel';
 import { WeaponSystem } from '../weapons/weaponSystem';
 import type { UIManager } from '../ui/uiManager';
@@ -65,7 +66,7 @@ function makeEnemy(kind: EnemyKind, x: number, z: number, angle: number, hpMul: 
   }
 }
 
-const PICKUP_KINDS = new Set<string>(['healthSmall', 'healthLarge', 'armor', 'bulletClip', 'bulletBox', 'shells', 'shellBox', 'keyRed', 'keyBlue', 'keyYellow', 'shotgun', 'chainsword']);
+const PICKUP_KINDS = new Set<string>(['healthSmall', 'healthLarge', 'armor', 'bulletClip', 'bulletBox', 'shells', 'shellBox', 'keyRed', 'keyBlue', 'keyYellow', 'shotgun', 'chainsword', 'sniper', 'rounds', 'grenades']);
 
 export class LevelScene implements GameCtx {
   readonly scene: Scene;
@@ -73,6 +74,13 @@ export class LevelScene implements GameCtx {
   readonly lights = new LightManager();
   readonly shake = new ScreenShake();
   readonly projectiles = new Projectiles();
+  readonly grenades = new Grenades();
+  /** Focus (bullet time) meter 0..1 and whether it is running. */
+  focus = 1;
+  focusOn = false;
+  private grenadeCD = 0;
+  private zoom = 0;
+  private baseFov = 1.2;
   readonly enemies: Enemy[] = [];
   readonly barrels: Barrel[] = [];
   readonly pickups: Pickup[] = [];
@@ -275,7 +283,7 @@ export class LevelScene implements GameCtx {
       return;
     }
     const l = this.data.startLoadout;
-    p.applyState({ health: l.health, armor: l.armor, ammo: { bullets: l.bullets, shells: l.shells }, weapons: [...l.weapons], keys: [] });
+    p.applyState({ health: l.health, armor: l.armor, ammo: { bullets: l.bullets, shells: l.shells, rounds: l.rounds ?? 0, grenades: l.grenades ?? 0 }, weapons: [...l.weapons], keys: [] });
   }
 
   summon(kind: EnemyKind, x: number, z: number): Enemy | null {
@@ -302,6 +310,13 @@ export class LevelScene implements GameCtx {
     this.lights.addFx(e.pos.add(new Vector3(0, 1.2, 0)), new Color3(1, 0.3, 0.3), 2.2, 6, 0.6);
     this.sound('teleport', e.pos);
     return e;
+  }
+
+  private setFocus(on: boolean): void {
+    if (on === this.focusOn) return;
+    this.focusOn = on;
+    this.audio.play('teleport', { pitch: on ? 0.45 : 0.8, volume: 0.6 });
+    if (on) this.ui.hud.flash('gold', 0.15);
   }
 
   pushPlayer(v: Vector3): void {
@@ -361,7 +376,8 @@ export class LevelScene implements GameCtx {
   private updateFov(hfovDeg: number): void {
     const aspect = this.engine.getRenderWidth() / Math.max(1, this.engine.getRenderHeight());
     const h = (hfovDeg * Math.PI) / 180;
-    this.camera.fov = 2 * Math.atan(Math.tan(h / 2) / Math.max(aspect, 0.5));
+    this.baseFov = 2 * Math.atan(Math.tan(h / 2) / Math.max(aspect, 0.5));
+    this.camera.fov = this.baseFov * (1 - 0.72 * this.zoom);
   }
 
   /** Starts ambience + start triggers (after the loading screen is dismissed). */
@@ -383,6 +399,7 @@ export class LevelScene implements GameCtx {
   // ------------------------------------------------------------------ GameCtx
 
   sound(id: SoundId, pos?: Vector3 | null, opts: PlayOpts = {}): SoundHandle {
+    if (pos && this.focusOn) opts = { ...opts, pitch: (opts.pitch ?? 1) * 0.62 };
     if (pos) {
       const occluded = !this.world.los(this.player.eye, pos.add(new Vector3(0, 0.6, 0)));
       return this.audio.play(id, { ...opts, pos, occluded });
@@ -437,6 +454,10 @@ export class LevelScene implements GameCtx {
     e.damage(amount, d, kind, this);
     if (!e.alive) {
       if (!this.summoned.has(e)) this.kills++;
+      else if (Math.random() < 0.7) {
+        const drops: PickupKind[] = ['shells', 'rounds', 'bulletClip', 'healthSmall', 'grenades', 'shells', 'rounds'];
+        this.spawnDrop(drops[Math.floor(Math.random() * drops.length)], e.pos);
+      }
       if (e.def.bossName) {
         this.shake.add(1);
         this.lights.addFx(e.eye, new Color3(1, 0.5, 0.2), 6, 22, 1.2);
@@ -842,6 +863,40 @@ export class LevelScene implements GameCtx {
     }
     if (!p.dead && input.pressed('use')) this.tryUse();
 
+    // Q: focus — the world runs at FOCUS.worldScale, the marine at full speed
+    if (!p.dead && input.pressed('focus')) {
+      if (this.focusOn) this.setFocus(false);
+      else if (this.focus >= FOCUS.minToStart) this.setFocus(true);
+    }
+    if (this.focusOn) {
+      this.focus -= dt / FOCUS.duration;
+      if (this.focus <= 0 || p.dead) {
+        this.focus = Math.max(0, this.focus);
+        this.setFocus(false);
+      }
+    } else this.focus = Math.min(1, this.focus + dt / FOCUS.recharge);
+    const wdt = this.focusOn ? dt * FOCUS.worldScale : dt;
+
+    // G: frag grenade
+    this.grenadeCD -= dt;
+    if (!p.dead && input.pressed('grenade') && this.grenadeCD <= 0) {
+      if (p.ammo.grenades > 0) {
+        p.ammo.grenades--;
+        this.grenades.throw(this);
+        this.grenadeCD = GRENADE.cooldown;
+      } else this.ui.hud.message(t('msg.noGrenades'));
+    }
+
+    // sniper scope (hold RMB)
+    const scoped = !p.dead && this.weapons.current === 'sniper' && input.rightDown;
+    this.zoom += ((scoped ? 1 : 0) - this.zoom) * Math.min(1, dt * 14);
+    this.camera.fov = this.baseFov * (1 - 0.72 * this.zoom);
+    this.ui.hud.setScope(this.zoom > 0.6);
+    if (this.zoom > 0.3) {
+      input.mouseDX *= 0.35;
+      input.mouseDY *= 0.35;
+    }
+
     p.update(dt, input, s);
     this.weapons.update(dt, input, this);
 
@@ -860,21 +915,23 @@ export class LevelScene implements GameCtx {
     for (const l of this.world.lifts) l.update(dt);
 
     this.nav.update(dt, p.pos.x, p.pos.z);
-    for (const e of this.enemies) updateEnemy(e, dt, this);
+    for (const e of this.enemies) updateEnemy(e, wdt, this);
     this.separate();
-    this.projectiles.update(dt, this);
-    for (const b of this.barrels) b.update(dt, this);
+    this.projectiles.update(wdt, this);
+    this.grenades.update(wdt, this);
+    for (const b of this.barrels) b.update(wdt, this);
     this.updatePickups();
     this.triggers.update(dt, p.pos.x, p.pos.z);
     this.checkSecrets();
     this.checkWaves();
     this.updateBoss();
-    this.updateHazards(dt);
-    for (const tf of this.telefogs) tf.t += dt;
+    this.updateHazards(wdt);
+    for (const tf of this.telefogs) tf.t += wdt;
     this.telefogs = this.telefogs.filter((tf) => tf.t < 0.5);
 
-    this.debris.update(dt);
+    this.debris.update(wdt);
     this.shake.update(dt);
+    this.ui.hud.setFocus(this.focus, this.focusOn);
 
     // camera
     const eye = p.eye;
@@ -1053,6 +1110,7 @@ export class LevelScene implements GameCtx {
       b.add(SPRITES['erupt' + k], h.pos.x, h.pos.y + 0.25, h.pos.z, [1, 1, 1], { full: true, scale: h.radius * 0.9, depthBias: 0.3 });
     }
     this.projectiles.draw(b);
+    this.grenades.draw(b, this);
     this.debris.draw(b, (x, z) => L(x, z));
     b.end();
   }
@@ -1113,8 +1171,8 @@ export class LevelScene implements GameCtx {
 
   debugGiveAll(): void {
     const p = this.player;
-    p.weapons = new Set(['pistol', 'shotgun', 'chainsword']);
-    p.ammo = { bullets: 200, shells: 50 };
+    p.weapons = new Set(['pistol', 'shotgun', 'chainsword', 'sniper']);
+    p.ammo = { bullets: 200, shells: 50, rounds: 30, grenades: 8 };
     p.keys = new Set(['red', 'blue']);
     p.health = 100;
     p.armor = 200;

@@ -86,7 +86,7 @@ export class Sovereign extends Enemy {
           ctx.lights.addFx(this.pos, new Color3(1, 0.4, 0.2), 5, 16, 0.4);
           if (dist < this.def.meleeRange + 1) {
             ctx.damagePlayer(rand(...this.def.meleeDamage) * ctx.diff.enemyDamage, this.pos, 'blast');
-            ctx.pushPlayer(new Vector3(p.pos.x - this.pos.x, 0, p.pos.z - this.pos.z).normalize().scale(14));
+            ctx.pushPlayer(new Vector3(p.pos.x - this.pos.x, 0, p.pos.z - this.pos.z).normalize().scale(9));
           }
         }
         if (this.attackPhase === 1 && this.attackT > 0.7) {

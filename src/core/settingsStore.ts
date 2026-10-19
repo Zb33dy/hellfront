@@ -2,9 +2,9 @@ import type { Lang } from './i18n';
 
 export type Action =
   | 'forward' | 'back' | 'left' | 'right' | 'jump' | 'sprint' | 'use'
-  | 'weapon1' | 'weapon2' | 'weapon3' | 'pause';
+  | 'weapon1' | 'weapon2' | 'weapon3' | 'weapon4' | 'lastWeapon' | 'grenade' | 'focus' | 'pause';
 
-export const ACTIONS: Action[] = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'use', 'weapon1', 'weapon2', 'weapon3', 'pause'];
+export const ACTIONS: Action[] = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'use', 'weapon1', 'weapon2', 'weapon3', 'weapon4', 'lastWeapon', 'grenade', 'focus', 'pause'];
 
 export const DEFAULT_BINDINGS: Record<Action, string> = {
   forward: 'KeyW',
@@ -17,6 +17,10 @@ export const DEFAULT_BINDINGS: Record<Action, string> = {
   weapon1: 'Digit1',
   weapon2: 'Digit2',
   weapon3: 'Digit3',
+  weapon4: 'Digit4',
+  lastWeapon: 'KeyZ',
+  grenade: 'KeyG',
+  focus: 'KeyQ',
   pause: 'Escape',
 };
 

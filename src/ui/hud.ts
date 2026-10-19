@@ -83,6 +83,10 @@ export class HUD {
   private bossName: HTMLElement;
   private bossFill: HTMLElement;
   private bossKey: string | null = null;
+  private focusEl: HTMLElement;
+  private focusFill: HTMLElement;
+  private scopeEl: HTMLElement;
+  private slowEl: HTMLElement;
   readonly clickEl: HTMLElement;
   readonly viewLayer: HTMLElement;
   private cache: Record<string, string> = {};
@@ -109,7 +113,12 @@ export class HUD {
     this.bossName = h('div', { class: 'boss-name' });
     this.bossFill = h('i');
     this.bossEl = h('div', { class: 'boss-bar hidden' }, [this.bossName, h('div', { class: 'boss-track' }, [this.bossFill])]);
-    this.el.append(cross, this.hitEl, ring, this.msgEl, this.objEl, this.clickEl, this.bossEl);
+    this.focusFill = h('i');
+    this.focusEl = h('div', { class: 'focus-meter' }, [h('b', { text: 'Q' }), h('div', { class: 'focus-track' }, [this.focusFill])]);
+    this.scopeEl = h('div', { class: 'scope-overlay' }, [h('i')]);
+    this.slowEl = h('div', { class: 'slowmo-overlay' });
+    this.el.prepend(this.scopeEl, this.slowEl);
+    this.el.append(cross, this.hitEl, ring, this.msgEl, this.objEl, this.clickEl, this.bossEl, this.focusEl);
 
     const bar = h('div', { class: 'hud-bar' });
     const cell = (cls = '') => h('div', { class: 'hud-cell ' + cls });
@@ -127,7 +136,7 @@ export class HUD {
     c2.append(this.hpNum, label('hud.health'));
     const c3 = cell();
     const arms = h('div', { class: 'arms' });
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 4; i++) {
       const s = h('span', { text: String(i) });
       this.armsEls.push(s);
       arms.append(s);
@@ -153,8 +162,10 @@ export class HUD {
     };
     const [rb, vb] = row('BULL');
     const [rs, vs] = row('SHEL');
-    this.resRows = { bullets: rb, shells: rs };
-    this.resVals = { bullets: vb, shells: vs };
+    const [rr, vr] = row('RNDS');
+    const [rg, vg] = row('GREN');
+    this.resRows = { bullets: rb, shells: rs, rounds: rr, grenades: rg };
+    this.resVals = { bullets: vb, shells: vs, rounds: vr, grenades: vg };
     c7.append(table);
     bar.append(c1, c2, c3, c4, c5, c6, c7);
     this.el.append(bar);
@@ -192,7 +203,7 @@ export class HUD {
   }
 
   setReserves(r: Record<AmmoType, number>, max: Record<AmmoType, number>, current: AmmoType | null): void {
-    for (const k of ['bullets', 'shells'] as AmmoType[]) {
+    for (const k of ['bullets', 'shells', 'rounds', 'grenades'] as AmmoType[]) {
       const s = `${r[k]}<b>/${max[k]}</b>`;
       if (this.cache['res' + k] !== s) {
         this.cache['res' + k] = s;
@@ -203,7 +214,7 @@ export class HUD {
   }
 
   setArms(owned: Set<WeaponId>, current: WeaponId): void {
-    const ids: WeaponId[] = ['pistol', 'shotgun', 'chainsword'];
+    const ids: WeaponId[] = ['pistol', 'shotgun', 'chainsword', 'sniper'];
     ids.forEach((id, i) => {
       this.armsEls[i].classList.toggle('owned', owned.has(id));
       this.armsEls[i].classList.toggle('active', current === id);
@@ -220,6 +231,23 @@ export class HUD {
     while (this.msgEl.children.length > 4) this.msgEl.firstChild!.remove();
     setTimeout(() => d.classList.add('out'), 3200);
     setTimeout(() => d.remove(), 3900);
+  }
+
+  /** Focus (bullet time) meter: fraction left and whether it is running. */
+  setFocus(frac: number, active: boolean): void {
+    const w = (Math.max(0, Math.min(1, frac)) * 100).toFixed(0) + '%';
+    if (this.cache.focus !== w) {
+      this.cache.focus = w;
+      this.focusFill.style.width = w;
+    }
+    this.focusEl.classList.toggle('active', active);
+    this.focusEl.classList.toggle('ready', frac >= 0.999);
+    this.slowEl.classList.toggle('show', active);
+  }
+
+  setScope(on: boolean): void {
+    this.scopeEl.classList.toggle('show', on);
+    this.el.classList.toggle('scoped', on);
   }
 
   /** Boss health bar; null hides it. */

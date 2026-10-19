@@ -50,7 +50,7 @@ export class ViewModel {
       this.flashImg.style.display = 'block';
       // muzzle position in view-model space
       const mx = weapon === 'shotgun' ? 83 : 84;
-      const my = weapon === 'shotgun' ? 14 : 36;
+      const my = weapon === 'shotgun' ? 14 : weapon === 'sniper' ? 4 : 36;
       this.flashImg.style.left = `${((mx - 24) / VM_W) * 100}%`;
       this.flashImg.style.top = `${((my - 26) / VM_H) * 100}%`;
       this.flashImg.style.width = `${(48 / VM_W) * 100 * (big ? 1.25 : 1)}%`;

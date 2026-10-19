@@ -93,6 +93,34 @@ function chainsword(state: 'idle0' | 'idle1' | 'swing0' | 'swing1'): Pix {
   return p;
 }
 
+function sniper(state: 'idle' | 'fire' | 'pump1' | 'pump2'): Pix {
+  const p = new Pix(VM_W, VM_H, 6);
+  const dy = state === 'fire' ? 10 : 0;
+  const bolt = state === 'pump1' ? 8 : state === 'pump2' ? 3 : 0;
+  // right arm + grip
+  arm(p, 120, 114, 104, 94 + dy, 10);
+  p.ell(102, 92 + dy, 12, 9, GLOVE, 0.5);
+  // stock + receiver (dark polymer)
+  p.poly([[72, 110], [98, 110], [94, 72 + dy], [76, 72 + dy]], [44, 46, 40]);
+  p.poly([[74, 76 + dy], [96, 76 + dy], [90, 44 + dy], [80, 44 + dy]], STEEL_D);
+  // long barrel with muzzle brake
+  p.poly([[81, 46 + dy], [89, 46 + dy], [86, 4 + dy], [84, 4 + dy]], STEEL);
+  p.line(85, 6 + dy, 85, 44 + dy, [150, 154, 166]);
+  p.rect(82, 2 + dy, 6, 5, [40, 40, 46]);
+  // scope
+  p.poly([[76, 62 + dy], [94, 62 + dy], [92, 40 + dy], [78, 40 + dy]], [30, 32, 36]);
+  p.ell(85, 40 + dy, 6, 4, [24, 26, 30]);
+  p.ell(85, 40 + dy, 3, 2, glow(90, 160, 255, 0.8), 0);
+  // bolt handle
+  p.ell(100 + bolt, 70 + dy - bolt, 4, 3, [150, 154, 166]);
+  p.line(94, 70 + dy, 100 + bolt, 70 + dy - bolt, STEEL);
+  // left hand under the handguard
+  arm(p, 30, 114, 64, 70 + dy, 9);
+  p.ell(74, 64 + dy, 11, 8, GLOVE, 0.5);
+  p.finish([14, 12, 12]);
+  return p;
+}
+
 function flash(big: boolean): Pix {
   const p = new Pix(48, 40, big ? 5 : 4);
   const cx = 24, cy = 24;
@@ -111,6 +139,7 @@ export interface WeaponFrames {
   pistol: { idle: HTMLCanvasElement; fire: HTMLCanvasElement };
   shotgun: { idle: HTMLCanvasElement; fire: HTMLCanvasElement; pump1: HTMLCanvasElement; pump2: HTMLCanvasElement };
   chainsword: { idle0: HTMLCanvasElement; idle1: HTMLCanvasElement; swing0: HTMLCanvasElement; swing1: HTMLCanvasElement };
+  sniper: { idle: HTMLCanvasElement; fire: HTMLCanvasElement; pump1: HTMLCanvasElement; pump2: HTMLCanvasElement };
   flashSmall: HTMLCanvasElement;
   flashBig: HTMLCanvasElement;
 }
@@ -127,6 +156,10 @@ export function weaponFrames(): WeaponFrames {
     chainsword: {
       idle0: chainsword('idle0').toCanvas(), idle1: chainsword('idle1').toCanvas(),
       swing0: chainsword('swing0').toCanvas(), swing1: chainsword('swing1').toCanvas(),
+    },
+    sniper: {
+      idle: sniper('idle').toCanvas(), fire: sniper('fire').toCanvas(),
+      pump1: sniper('pump1').toCanvas(), pump2: sniper('pump2').toCanvas(),
     },
     flashSmall: flash(false).toCanvas(),
     flashBig: flash(true).toCanvas(),

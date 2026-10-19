@@ -36,6 +36,7 @@ const things: ThingDef[] = [
   { kind: 'shells', x: 11.5, y: 27.5 },
   { kind: 'bulletClip', x: 21.5, y: 27.5 },
   { kind: 'armor', x: 4.5, y: 33.5 },
+  { kind: 'grenades', x: 21.5, y: 33 },
   { kind: 'barrel', x: 15.2, y: 41.6 },
   { kind: 'barrel', x: 15.9, y: 42.3 },
   { kind: 'lamp', x: 9.4, y: 36.4 },
@@ -69,6 +70,7 @@ const things: ThingDef[] = [
 
   // Causeway
   { kind: 'healthSmall', x: 26, y: 10 },
+  { kind: 'grenades', x: 26, y: 11 },
   { kind: 'shellBox', x: 26, y: 12 },
   { kind: 'executioner', x: 40, y: 11, angle: 270 },
   { kind: 'wraith', x: 33, y: 9.5, wave: 'causeway', teleport: true },
@@ -86,7 +88,7 @@ export const LEVEL04: LevelData = {
   introKey: 'ch4.intro',
   outroKey: 'ch4.outro',
   next: 'level05',
-  startLoadout: { weapons: ['pistol', 'shotgun', 'chainsword'], bullets: 120, shells: 30, health: 100, armor: 50 },
+  startLoadout: { weapons: ['pistol', 'shotgun', 'chainsword'], bullets: 120, shells: 30, health: 100, armor: 50, grenades: 3 },
   completeVoice: 'v4_complete',
   ambience: { nukage: [33, 7], alarm: false },
   dust: [3, 26, 20, 18],
@@ -104,7 +106,7 @@ export const LEVEL04: LevelData = {
     { id: 'pit', rect: [4, 6, 20, 12], floor: 0, ceil: 12, floorTex: 'hellstone', ceilTex: 'hellstone', wallTex: 'bloodWall', stepTex: 'flesh', ambient: [0.09, 0.05, 0.05] },
     { id: 'pitRing', rect: [7, 8, 14, 8], floor: -0.5, ceil: 12, floorTex: 'concreteBlood', ceilTex: 'hellstone', wallTex: 'bloodWall', stepTex: 'flesh', ambient: [0.09, 0.05, 0.05] },
     { id: 'pitFloor', rect: [9, 10, 10, 4], floor: -1.0, ceil: 12, floorTex: 'flesh', ceilTex: 'hellstone', wallTex: 'bloodWall', stepTex: 'flesh', ambient: [0.11, 0.05, 0.05] },
-    { id: 'causeway', rect: [25, 5, 17, 12], floor: -0.8, ceil: 14, floorTex: 'lava', ceilTex: 'hellstone', wallTex: 'hellstone', ambient: [0.22, 0.07, 0.03], nukage: true, lava: true },
+    { id: 'causeway', rect: [25, 5, 17, 12], floor: -0.5, ceil: 14, floorTex: 'lava', ceilTex: 'hellstone', wallTex: 'hellstone', ambient: [0.22, 0.07, 0.03], nukage: true, lava: true },
     { id: 'walk', rect: [25, 9, 17, 4], floor: 0, ceil: 14, floorTex: 'hellstone', ceilTex: 'hellstone', wallTex: 'hellstone', stepTex: 'hellstone', ambient: [0.18, 0.08, 0.05] },
     { id: 'gateRoom', rect: [43, 8, 4, 6], floor: 0, ceil: 5, floorTex: 'hellstone', ceilTex: 'hellstone', wallTex: 'flesh', ambient: [0.12, 0.06, 0.08] },
     { id: 'pad', rect: [44, 10, 2, 2], floor: 0.15, ceil: 5, floorTex: 'exitPad', ceilTex: 'hellstone', wallTex: 'flesh', stepTex: 'flesh', ambient: [0.25, 0.1, 0.3] },

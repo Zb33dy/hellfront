@@ -1,4 +1,4 @@
-import { WEAPON_SLOTS, WEAPON_SWITCH_TIME, type WeaponId } from '../core/config';
+import { WEAPON_SLOTS, WEAPON_SWITCH_TIME, type AmmoType, type WeaponId } from '../core/config';
 import type { Input } from '../core/input';
 import { damp } from '../core/util';
 import type { GameCtx } from '../scenes/context';
@@ -6,12 +6,15 @@ import type { ViewModel } from '../ui/viewModel';
 import { Chainsword } from './chainsword';
 import { Pistol } from './pistol';
 import { Shotgun } from './shotgun';
+import { Sniper } from './sniper';
 import type { Weapon } from './weapon';
 
 /** Selection, raise/lower animation, firing cadence, ammo checks and view-model motion. */
 export class WeaponSystem {
-  readonly weapons: Record<WeaponId, Weapon> = { pistol: new Pistol(), shotgun: new Shotgun(), chainsword: new Chainsword() };
+  readonly weapons: Record<WeaponId, Weapon> = { pistol: new Pistol(), shotgun: new Shotgun(), chainsword: new Chainsword(), sniper: new Sniper() };
   current: WeaponId = 'pistol';
+  /** Weapon held before the current one (Z swaps back to it). */
+  previous: WeaponId | null = null;
   private pending: WeaponId | null = null;
   private phase: 'ready' | 'lowering' | 'raising' = 'raising';
   private phaseT = 0;
@@ -48,7 +51,7 @@ export class WeaponSystem {
   }
 
   private bestWithAmmo(ctx: GameCtx): WeaponId {
-    for (const id of ['shotgun', 'pistol', 'chainsword'] as WeaponId[])
+    for (const id of ['shotgun', 'sniper', 'pistol', 'chainsword'] as WeaponId[])
       if (ctx.player.weapons.has(id) && this.hasAmmo(this.weapons[id], ctx)) return id;
     return 'pistol';
   }
@@ -59,6 +62,8 @@ export class WeaponSystem {
       if (input.pressed('weapon1')) this.request('pistol', ctx);
       if (input.pressed('weapon2')) this.request('shotgun', ctx);
       if (input.pressed('weapon3')) this.request('chainsword', ctx);
+      if (input.pressed('weapon4')) this.request('sniper', ctx);
+      if (input.pressed('lastWeapon') && this.previous && p.weapons.has(this.previous)) this.request(this.previous, ctx);
       if (input.wheel !== 0) {
         const owned = WEAPON_SLOTS.filter((w) => p.weapons.has(w));
         const base = this.pending ?? this.current;
@@ -70,7 +75,9 @@ export class WeaponSystem {
     this.phaseT += dt;
     if (this.phase === 'lowering' && this.phaseT >= WEAPON_SWITCH_TIME) {
       this.weapon.deselect(ctx);
-      this.current = this.pending ?? this.current;
+      const next = this.pending ?? this.current;
+      if (next !== this.current) this.previous = this.current;
+      this.current = next;
       this.pending = null;
       this.phase = 'raising';
       this.phaseT = 0;
@@ -123,7 +130,7 @@ export class WeaponSystem {
   }
 
   /** Returns the ammo type shown on the HUD for the current weapon. */
-  get ammoType(): 'bullets' | 'shells' | null {
+  get ammoType(): AmmoType | null {
     return this.weapon.ammo;
   }
 }

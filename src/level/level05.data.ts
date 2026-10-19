@@ -23,6 +23,9 @@ const things: ThingDef[] = [
   { kind: 'healthLarge', x: 10, y: 51.5 },
   { kind: 'armor', x: 4.5, y: 60, skill: 'en' },
   { kind: 'wraith', x: 10, y: 47, angle: 0 },
+  { id: 'i_sniper', kind: 'sniper', x: 12, y: 57.5 },
+  { kind: 'grenades', x: 15.5, y: 59 },
+  { kind: 'rounds', x: 8, y: 59.5 },
 
   // Great hall
   { kind: 'executioner', x: 13.5, y: 32.5, angle: 0 },
@@ -35,6 +38,8 @@ const things: ThingDef[] = [
   { kind: 'healthSmall', x: 4.5, y: 37.5 },
   { kind: 'healthSmall', x: 23, y: 37.5 },
   { kind: 'shells', x: 13.5, y: 44.5 },
+  { kind: 'rounds', x: 4.5, y: 40 },
+  { kind: 'grenades', x: 23, y: 31 },
   { kind: 'bulletClip', x: 4.5, y: 31 },
   { kind: 'barrel', x: 8.2, y: 31 },
   { kind: 'barrel', x: 18.8, y: 31 },
@@ -59,6 +64,9 @@ const things: ThingDef[] = [
   { kind: 'shellBox', x: 11.5, y: 27.5 },
   { kind: 'bulletBox', x: 14.5, y: 27.5 },
   { kind: 'armor', x: 13, y: 26 },
+  { kind: 'rounds', x: 12.5, y: 24.5 },
+  { kind: 'rounds', x: 13.5, y: 24.5 },
+  { kind: 'grenades', x: 13, y: 28 },
 
   // Throne hall
   { kind: 'sovereign', x: 20, y: 8, angle: 0, wave: 'boss', teleport: true },
@@ -70,6 +78,11 @@ const things: ThingDef[] = [
   { kind: 'shells', x: 35, y: 15.5 },
   { kind: 'bulletBox', x: 20, y: 21 },
   { kind: 'armor', x: 35, y: 3, skill: 'e' },
+  { kind: 'rounds', x: 4.5, y: 19 },
+  { kind: 'rounds', x: 35, y: 19 },
+  { kind: 'rounds', x: 20, y: 17 },
+  { kind: 'grenades', x: 35, y: 12.5 },
+  { kind: 'grenades', x: 4.5, y: 12.5 },
 ];
 
 export const LEVEL05: LevelData = {
@@ -79,7 +92,7 @@ export const LEVEL05: LevelData = {
   introKey: 'ch5.intro',
   outroKey: 'ch5.outro',
   next: null,
-  startLoadout: { weapons: ['pistol', 'shotgun', 'chainsword'], bullets: 140, shells: 40, health: 100, armor: 75 },
+  startLoadout: { weapons: ['pistol', 'shotgun', 'chainsword'], bullets: 140, shells: 40, health: 100, armor: 75, grenades: 4 },
   completeVoice: 'v5_complete',
   ambience: { nukage: [33, 36], alarm: false },
   dust: [3, 2, 34, 21],
@@ -92,7 +105,7 @@ export const LEVEL05: LevelData = {
     { id: 'approach', rect: [3, 50, 14, 12], floor: 0, ceil: 14, floorTex: 'hellstone', ceilTex: 'hellstone', wallTex: 'hellstone', ambient: [0.12, 0.07, 0.07] },
     { id: 'gatePass', rect: [8, 46, 4, 4], floor: 0, ceil: 6, floorTex: 'hellstone', ceilTex: 'flesh', wallTex: 'flesh', ambient: [0.1, 0.05, 0.05] },
     { id: 'hall', rect: [3, 30, 22, 16], floor: 0, ceil: 12, floorTex: 'hellstone', ceilTex: 'hellstone', wallTex: 'flesh', stepTex: 'hellstone', ambient: [0.1, 0.05, 0.06] },
-    { id: 'cloister', rect: [26, 28, 14, 16], floor: -0.8, ceil: 12, floorTex: 'lava', ceilTex: 'hellstone', wallTex: 'hellstone', ambient: [0.24, 0.08, 0.03], nukage: true, lava: true },
+    { id: 'cloister', rect: [26, 28, 14, 16], floor: -0.5, ceil: 12, floorTex: 'lava', ceilTex: 'hellstone', wallTex: 'hellstone', ambient: [0.24, 0.08, 0.03], nukage: true, lava: true },
     { id: 'walkN', rect: [26, 28, 14, 2], floor: 0, ceil: 12, floorTex: 'hellstone', ceilTex: 'hellstone', wallTex: 'hellstone', stepTex: 'hellstone', ambient: [0.18, 0.08, 0.05] },
     { id: 'walkS', rect: [26, 42, 14, 2], floor: 0, ceil: 12, floorTex: 'hellstone', ceilTex: 'hellstone', wallTex: 'hellstone', stepTex: 'hellstone', ambient: [0.18, 0.08, 0.05] },
     { id: 'walkW', rect: [26, 28, 2, 16], floor: 0, ceil: 12, floorTex: 'hellstone', ceilTex: 'hellstone', wallTex: 'hellstone', stepTex: 'hellstone', ambient: [0.18, 0.08, 0.05] },
@@ -102,8 +115,8 @@ export const LEVEL05: LevelData = {
     { id: 'ante', rect: [11, 24, 4, 5], floor: 0, ceil: 4, floorTex: 'hellstone', ceilTex: 'flesh', wallTex: 'flesh', ambient: [0.12, 0.08, 0.08] },
     { id: 'throne', rect: [3, 2, 34, 21], floor: 0, ceil: 16, floorTex: 'hellstone', ceilTex: 'hellstone', wallTex: 'flesh', stepTex: 'flesh', ambient: [0.1, 0.04, 0.07] },
     { id: 'dais', rect: [16, 3, 8, 4], floor: 0.5, ceil: 16, floorTex: 'flesh', ceilTex: 'hellstone', wallTex: 'flesh', stepTex: 'flesh', ambient: [0.16, 0.06, 0.1] },
-    { id: 'poolW', rect: [5, 4, 4, 4], floor: -0.8, ceil: 16, floorTex: 'lava', ceilTex: 'hellstone', wallTex: 'flesh', ambient: [0.24, 0.08, 0.03], nukage: true, lava: true },
-    { id: 'poolE', rect: [31, 4, 4, 4], floor: -0.8, ceil: 16, floorTex: 'lava', ceilTex: 'hellstone', wallTex: 'flesh', ambient: [0.24, 0.08, 0.03], nukage: true, lava: true },
+    { id: 'poolW', rect: [5, 4, 4, 4], floor: -0.5, ceil: 16, floorTex: 'lava', ceilTex: 'hellstone', wallTex: 'flesh', ambient: [0.24, 0.08, 0.03], nukage: true, lava: true },
+    { id: 'poolE', rect: [31, 4, 4, 4], floor: -0.5, ceil: 16, floorTex: 'lava', ceilTex: 'hellstone', wallTex: 'flesh', ambient: [0.24, 0.08, 0.03], nukage: true, lava: true },
     { id: 'window', rect: [38, 10, 4, 4], floor: 0, ceil: 5, floorTex: 'floorGrate', ceilTex: 'lightPanel', wallTex: 'techWall', ambient: [0.1, 0.14, 0.18] },
     { id: 'pad', rect: [39, 11, 2, 2], floor: 0.15, ceil: 5, floorTex: 'exitPad', ceilTex: 'lightPanel', wallTex: 'techWall', stepTex: 'hazard', ambient: [0.2, 0.35, 0.45] },
   ],
@@ -190,6 +203,7 @@ export const LEVEL05: LevelData = {
     { id: 't_hallCp', when: { enter: [8, 44, 4, 2] }, actions: [{ do: 'checkpoint', id: 'cp_hall' }] },
     { id: 't_cloister', when: { enter: [26, 34, 2, 4] }, actions: [{ do: 'voice', id: 'v5_cloister' }, { do: 'objective', key: 'obj5.yellow' }, { do: 'checkpoint', id: 'cp_cloister' }] },
     { id: 't_key', when: { pickup: 'i_keyYellow' }, actions: [{ do: 'wave', id: 'cloister' }, { do: 'objective', key: 'obj5.throne' }, { do: 'voice', id: 'v5_key' }] },
+    { id: 't_sniper', when: { pickup: 'i_sniper' }, actions: [{ do: 'voice', id: 'v5_sniper' }, { do: 'message', key: 'msg.sniperHint' }] },
     { id: 't_ante', when: { enter: [11, 24, 4, 5] }, actions: [{ do: 'checkpoint', id: 'cp_ante' }] },
     { id: 't_boss', when: { enter: [3, 2, 34, 19] }, actions: [{ do: 'closeDoor', id: 'd_throne', lock: true }, { do: 'wave', id: 'boss' }, { do: 'objective', key: 'obj5.boss' }, { do: 'voice', id: 'v5_throne' }] },
     { id: 't_bossDead', when: { waveCleared: 'boss' }, actions: [{ do: 'unlockDoor', id: 'd_exit' }, { do: 'openDoor', id: 'd_exit' }, { do: 'unlockDoor', id: 'd_throne' }, { do: 'objective', key: 'obj5.exit' }, { do: 'voice', id: 'v5_dead' }], delay: 2.0 },

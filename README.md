@@ -20,7 +20,7 @@ npm run build
 
 ## Controls
 
-WASD move · mouse look · LMB fire · E use · 1/2/3 weapons · Space jump · Shift sprint · Esc pause · F3 debug overlay · F4 noclip.
+WASD move · mouse look · LMB fire · RMB scope (rifle) · E use · 1/2/3/4 weapons · Z previous weapon · G frag grenade · Q focus (slows the world, not you) · Space jump · Shift sprint · Esc pause · F3 debug overlay · F4 noclip.
 All bindings can be changed in Settings.
 
 ## Campaign

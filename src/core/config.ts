@@ -23,11 +23,11 @@ export const PLAYER = {
   fallDamageSpeed: 14,
 } as const;
 
-export type AmmoType = 'bullets' | 'shells';
-export type WeaponId = 'pistol' | 'shotgun' | 'chainsword';
+export type AmmoType = 'bullets' | 'shells' | 'rounds' | 'grenades';
+export type WeaponId = 'pistol' | 'shotgun' | 'chainsword' | 'sniper';
 export type KeyColor = 'red' | 'blue' | 'yellow';
 
-export const AMMO_MAX: Record<AmmoType, number> = { bullets: 200, shells: 50 };
+export const AMMO_MAX: Record<AmmoType, number> = { bullets: 200, shells: 50, rounds: 30, grenades: 8 };
 
 export interface HitscanWeaponDef {
   kind: 'hitscan';
@@ -57,7 +57,7 @@ export interface MeleeWeaponDef {
   lunge: number;
 }
 
-export const WEAPONS: { pistol: HitscanWeaponDef; shotgun: HitscanWeaponDef; chainsword: MeleeWeaponDef } = {
+export const WEAPONS: { pistol: HitscanWeaponDef; shotgun: HitscanWeaponDef; chainsword: MeleeWeaponDef; sniper: HitscanWeaponDef } = {
   pistol: {
     kind: 'hitscan', ammo: 'bullets', ammoPerShot: 1, pellets: 1,
     damageMin: 10, damageMax: 15, spread: 0.008, fireInterval: 0.36, range: 120,
@@ -72,9 +72,20 @@ export const WEAPONS: { pistol: HitscanWeaponDef; shotgun: HitscanWeaponDef; cha
     kind: 'melee', damageMin: 8, damageMax: 12, range: 2.3, arc: 1.1,
     fireInterval: 0.11, pinkyMul: 1.6, shake: 0.12, noise: 10, lunge: 2.0,
   },
+  // Anti-materiel rifle: one huge round, pinpoint, slow to cycle. Built for the Sovereign.
+  sniper: {
+    kind: 'hitscan', ammo: 'rounds', ammoPerShot: 1, pellets: 1,
+    damageMin: 200, damageMax: 240, spread: 0, fireInterval: 1.25, range: 240,
+    recoil: 0.11, shake: 0.4, noise: 36,
+  },
 };
 
-export const WEAPON_SLOTS: WeaponId[] = ['pistol', 'shotgun', 'chainsword'];
+/** Thrown frag grenade (G). */
+export const GRENADE = { damage: 160, radius: 6.5, fuse: 1.7, speed: 16, cooldown: 0.7 };
+/** Q: focus — the world slows down, the marine does not. */
+export const FOCUS = { duration: 5, recharge: 16, worldScale: 0.3, minToStart: 0.15 };
+
+export const WEAPON_SLOTS: WeaponId[] = ['pistol', 'shotgun', 'chainsword', 'sniper'];
 export const WEAPON_SWITCH_TIME = 0.22;
 
 export type EnemyKind = 'zombieman' | 'imp' | 'pinky' | 'ironclad' | 'warden' | 'executioner' | 'core' | 'wraith' | 'sovereign';
@@ -163,7 +174,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   },
   // Chapter 5 final boss.
   sovereign: {
-    hp: 3200, speed: 2.2, radius: 1.2, height: 3.6, painChance: 0.03, painTime: 0.25,
+    hp: 2600, speed: 2.2, radius: 1.2, height: 3.6, painChance: 0.03, painTime: 0.25,
     sightRange: 80, reaction: 0.8, meleeRange: 5.5, meleeWindup: 1.0, meleeDamage: [30, 45],
     rangedWindup: 0.8, rangedCooldown: [1.4, 2.2], rangedDamage: [12, 18], rangedRange: 70,
     gibThreshold: 99999, score: 1, mass: 0, bossName: 'boss.sovereign',
@@ -198,6 +209,9 @@ export const PICKUPS = {
   shells: 4,
   shellBox: 20,
   shotgunShells: 8,
+  rounds: 6,
+  sniperRounds: 10,
+  grenades: 2,
   startBullets: 50,
 } as const;
 

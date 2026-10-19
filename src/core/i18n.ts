@@ -84,7 +84,7 @@ const en: Dict = {
   'death.respawn': 'RESPAWN AT CHECKPOINT',
   'death.restart': 'RESTART LEVEL',
   'death.quit': 'QUIT TO MENU',
-  'death.flavor': 'Your body joins the hangar\'s silent crew.',
+  'death.flavor': 'Command loses your signal. Somewhere below, something laughs.',
   'complete.title': 'HANGAR SEVEN — CLEARED',
   'complete.kills': 'KILLS',
   'complete.items': 'ITEMS',
@@ -205,7 +205,7 @@ const tr: Dict = {
   'death.respawn': 'KONTROL NOKTASINDAN DOĞ',
   'death.restart': 'BÖLÜMÜ YENİDEN BAŞLAT',
   'death.quit': 'ANA MENÜYE DÖN',
-  'death.flavor': 'Bedenin hangarın sessiz mürettebatına katıldı.',
+  'death.flavor': 'Komuta sinyalini kaybediyor. Aşağıda bir yerde bir şey gülüyor.',
   'complete.title': 'HANGAR YEDİ — TEMİZLENDİ',
   'complete.kills': 'LEŞLER',
   'complete.items': 'EŞYALAR',
@@ -271,4 +271,4 @@ export function t(key: string, params?: Record<string, string | number>): string
   return s;
 }
 
-export const TIP_KEYS = ['tip.1', 'tip.2', 'tip.3', 'tip.4', 'tip.5', 'tip.6', 'tip.7', 'tip.8'];
+export const TIP_KEYS = ['tip.1', 'tip.2', 'tip.3', 'tip.4', 'tip.5', 'tip.6', 'tip.7', 'tip.8', 'tip.9', 'tip.10', 'tip.11'];
