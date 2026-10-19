@@ -1,4 +1,7 @@
-import { Color3, Color4, FreeCamera, Scene, Vector3, type Engine } from '@babylonjs/core';
+import { Color3, Color4, FreeCamera, Matrix, Scene, Vector3, type Engine } from '@babylonjs/core';
+
+/** Up to this much look-up/down is done by y-shearing (walls stay vertical, Doom-style); beyond it the camera really pitches. */
+const SHEAR_LIMIT = 0.85;
 import { CELL, DIFFICULTY, ENEMIES, PLAYER, AMMO_MAX, FOCUS, GRENADE, FLAMER, type AmmoType, type Difficulty, type EnemyKind, type HitscanWeaponDef, type MeleeWeaponDef, type WeaponId } from '../core/config';
 import type { Input } from '../core/input';
 import { t } from '../core/i18n';
@@ -1291,9 +1294,12 @@ export class LevelScene implements GameCtx {
     if (!Number.isFinite(p.roll) || (!p.dead && Math.abs(p.roll) > 0.05)) p.roll = 0;
     if (!Number.isFinite(p.recoil)) p.recoil = 0;
     if (!Number.isFinite(p.vel.x) || !Number.isFinite(p.vel.y) || !Number.isFinite(p.vel.z)) p.vel.set(0, 0, 0);
-    this.camera.rotation.x = p.pitch - p.recoil + this.shake.pitch;
+    const look = p.pitch - p.recoil + this.shake.pitch;
+    const real = Math.sign(look) * Math.max(0, Math.abs(look) - SHEAR_LIMIT);
+    this.camera.rotation.x = real;
     this.camera.rotation.y = p.yaw + this.shake.yaw;
     this.camera.rotation.z = (p.dead ? p.roll : 0) + this.shake.roll;
+    this.applyShear(look - real);
     this.lights.update(dt, eye);
     this.decals.flush();
     const fwd = p.forward;
@@ -1576,6 +1582,18 @@ export class LevelScene implements GameCtx {
     this.laserOn = false;
     this.weapons.weapon.deselect(this);
     this.audio.stopWorldSounds();
+  }
+
+  private readonly proj = new Matrix();
+
+  /** Perspective with a vertically shifted centre: looking up/down without tilting walls. */
+  private applyShear(angle: number): void {
+    const eng = this.scene.getEngine();
+    const cam = this.camera;
+    Matrix.PerspectiveFovLHToRef(cam.fov, eng.getAspectRatio(cam), cam.minZ, cam.maxZ, this.proj, true, eng.isNDCHalfZRange);
+    const m = this.proj.m;
+    this.proj.setRowFromFloats(2, m[8], Math.tan(angle) * m[5], m[10], m[11]);
+    cam.freezeProjectionMatrix(this.proj);
   }
 
   /** Clears any leftover roll / shake (e.g. after a pause or a menu). */
