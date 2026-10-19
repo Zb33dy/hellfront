@@ -281,6 +281,7 @@ export class AudioManager {
       buf = synthesizeChatter(c, estimateDuration(line.en), line.id.length * 131);
       chatter = true;
     }
+    if (line.dry && chatter) return estimateDuration(line.en); // no recording yet: subtitle only
     if (line.dry && !chatter) {
       // boss voice: dry, a touch of low-end weight, no squelch or static bed
       const src = c.createBufferSource();
