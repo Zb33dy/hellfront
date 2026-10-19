@@ -5,3 +5,5 @@ dist
 !.env.example
 *.log
 .vercel
+.claude/settings.local.json
+*.zip

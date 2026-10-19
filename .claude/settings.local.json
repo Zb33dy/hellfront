@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(Get-ChildItem 'HKCU:\\\\Control Panel\\\\International' -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.Name; $_ | Get-ItemProperty | Out-String }; Get-ItemProperty 'HKCU:\\\\Control Panel\\\\Calendars' -ErrorAction SilentlyContinue; Get-ChildItem 'HKCU:\\\\Control Panel\\\\Calendars' -Recurse -ErrorAction SilentlyContinue | Get-ItemProperty)",
-      "PowerShell($d=\\(Get-ItemProperty 'HKCU:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\CloudStore\\\\Store\\\\Cache\\\\DefaultAccount\\\\$$windows.data.lunarcalendar\\\\Current'\\).Data; \\($d | ForEach-Object { $_.ToString\\('X2'\\) }\\) -join ' '; $p='HKCU:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\CloudStore\\\\Store\\\\DefaultAccount\\\\Current\\\\{b639cb84-ca2f-4d2f-822c-ccd0ce7d58cd}$windows.data.lunarcalendarperdevice\\\\windows.data.lunarcalendarperdevice'; $e=\\(Get-ItemProperty $p\\).Data; \\($e | ForEach-Object { $_.ToString\\('X2'\\) }\\) -join ' ')",
-      "PowerShell(Start-Process \"ms-settings:dateandtime\")"
-    ]
-  }
-}
