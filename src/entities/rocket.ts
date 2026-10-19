@@ -15,6 +15,10 @@ export interface RocketOpts {
   guided?: boolean;
   /** Green hell-fire burst instead of a rocket explosion. */
   flame?: boolean;
+  /** Falls under gravity (cluster bomblets). */
+  gravity?: boolean;
+  /** Splits into bomblets on impact (launcher upgrade). */
+  cluster?: boolean;
 }
 
 interface Live {
@@ -25,14 +29,14 @@ interface Live {
   o: Required<RocketOpts>;
 }
 
-const DEFAULTS: Required<RocketOpts> = { speed: ROCKET.speed, damage: ROCKET.damage, radius: ROCKET.radius, sprite: 'rocket', tint: [1, 1, 1], scale: 1, guided: true, flame: false };
+const DEFAULTS: Required<RocketOpts> = { speed: ROCKET.speed, damage: ROCKET.damage, radius: ROCKET.radius, sprite: 'rocket', tint: [1, 1, 1], scale: 1, guided: true, flame: false, gravity: false, cluster: false };
 
 /** Player rockets: fast, straight, explode on the first thing they touch. */
 export class Rockets {
   private list: Live[] = [];
 
   fire(ctx: GameCtx, opts: RocketOpts = {}): void {
-    const o = { ...DEFAULTS, ...opts };
+    const o = { ...DEFAULTS, cluster: !opts.flame && ctx.hasMod('launcher'), ...opts };
     const p = ctx.player;
     const f = p.forward;
     const right = new Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw));
@@ -56,6 +60,10 @@ export class Rockets {
           if (r.dir.lengthSquared() < 1e-6) r.dir.copyFrom(want);
           r.dir.normalize();
         }
+      }
+      if (r.o.gravity) {
+        r.dir.y -= dt * 4;
+        r.dir.normalize();
       }
       const len = r.o.speed * dt;
       // enemies along the step
@@ -96,6 +104,7 @@ export class Rockets {
       ctx.lights.addFx(pos.add(new Vector3(0, 0.6, 0)), new Color3(0.3, 1, 0.5), 4, o.radius * 3, 0.4);
       ctx.radiusDamage(pos, o.radius, o.damage, this);
       ctx.noise(pos, 22);
+      if (ctx.hasMod('flamer')) ctx.firePool(pos, o.radius * 0.8, 5);
       return;
     }
     ctx.sound('barrel_explode', pos, { volume: 1.3, pitch: 0.9 });
@@ -107,6 +116,14 @@ export class Rockets {
     ctx.shake.add(Math.max(0.15, 0.8 - d / 25));
     ctx.radiusDamage(pos, o.radius, o.damage, this);
     ctx.noise(pos, 32);
+    if (o.cluster) {
+      // cluster warheads: five bomblets scatter from the blast
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2 + Math.random();
+        const b: Live = { pos: pos.add(new Vector3(0, 0.6, 0)), dir: new Vector3(Math.sin(a), 0.6, Math.cos(a)).normalize(), t: 0, alive: true, o: { ...DEFAULTS, speed: 9, damage: 55, radius: 2.8, scale: 0.55, guided: false, gravity: true, cluster: false } };
+        this.list.push(b);
+      }
+    }
   }
 
   draw(batch: SpriteBatch): void {

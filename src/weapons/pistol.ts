@@ -39,7 +39,11 @@ export class Pistol implements Weapon {
     const d = spreadMul === 1 ? WEAPONS.pistol : { ...WEAPONS.pistol, spread: WEAPONS.pistol.spread * spreadMul };
     ctx.sound('pistol_fire');
     ctx.muzzleFlash(false);
-    ctx.playerShot(d);
+    // armor-piercing upgrade: harder rounds that ignore shields and plating
+    const ap = ctx.hasMod('pistol');
+    ctx.piercingShot = ap;
+    ctx.playerShot(ap ? { ...d, damageMin: d.damageMin * 1.5, damageMax: d.damageMax * 1.5 } : d);
+    ctx.piercingShot = false;
     ctx.player.recoil += d.recoil;
     ctx.shake.add(d.shake);
     ctx.noise(ctx.player.pos, d.noise);

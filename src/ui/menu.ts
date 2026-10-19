@@ -6,6 +6,10 @@ export interface MenuCallbacks {
   onNewGame(d: Difficulty, levelId: string): void;
   /** Siege lobby: pick the starting round, then difficulty. */
   onSiege(): void;
+  /** Daily Siege: today's seeded run. */
+  onDaily(): void;
+  /** Achievements & cosmetics list. */
+  onAchievements(): void;
   /** Extra modes (tutorial, gallery, battle test). */
   onMode(id: string): void;
   /** Chapter select entries. */
@@ -56,7 +60,9 @@ export class MenuScreen {
       (this.continueBtn = button(t('menu.continue'), () => this.cb.onContinue(), s)),
       button(t('menu.chapters'), () => this.open('chapters'), s),
       button(t('menu.siege'), () => this.cb.onSiege(), s),
+      button(t('menu.daily'), () => this.cb.onDaily(), s),
       button(t('menu.modes'), () => this.open('modes'), s),
+      button(t('menu.achievements'), () => this.cb.onAchievements(), s),
       button(t('menu.settings'), () => this.cb.onSettings(), s),
       button(t('menu.credits'), () => this.open('credits'), s),
       button(t('menu.quit'), () => this.open('quit'), s),
@@ -70,7 +76,7 @@ export class MenuScreen {
     // difficulty
     const dp = h('div', { class: 'sub-panel plate' });
     dp.append(h('div', { class: 'panel-title', text: t('menu.difficulty') }));
-    const diffs: Difficulty[] = ['easy', 'normal', 'hard'];
+    const diffs: Difficulty[] = ['easy', 'normal', 'hard', 'ultra', 'turbo'];
     const dItems = diffs.map((d) => button(t(`diff.${d}`), () => this.cb.onNewGame(d, this.pendingLevel), s, t(`diff.${d}.d`)));
     const dBack = button(t('common.back'), () => this.open('none'), s);
     dp.append(...dItems, dBack);

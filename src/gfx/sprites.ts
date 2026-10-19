@@ -2,6 +2,7 @@ import { RawTexture, Texture, type Scene } from '@babylonjs/core';
 import { Pix, glow, type RGBA } from './pixart';
 import { breachCore, executioner, hellbolt, ironclad, warden, type Pose } from './spritesCh23';
 import { beamSeg, chainLink, jumpRing, bolterPickup, boltsBox, flameJet, flamerPickup, fuelCan, hellShield, heresyBolt, hereticMarine, sorcerer, soulOrb } from './spritesHeretic';
+import { acidOrb, archon, bulwark, harrier, sigilRing } from './spritesCh6';
 import { boneShard, eruptionMark, grenadePickup, grenadeSprite, launcherPickup, rocketsBox, rocketSprite, roundsBox, sniperPickup, sovereign, warhound, wraith } from './spritesCh45';
 
 // Original procedural pixel-art sprites for enemies, pickups, props and projectiles.
@@ -570,8 +571,8 @@ function buildFrames(): Map<string, { pix: Pix; anchor: 'bottom' | 'center' }> {
       { bob: -1, lFoot: [cx - sp - 2, g], rFoot: [cx + sp + 2, g - 2] },
     ];
   };
-  const monster = (name: string, fn: (p: Pose) => Pix, w: number, h: number, poolR: number) => {
-    walkPoses(w, h).forEach((p, i) => add(name + '_walk' + i, fn(p)));
+  const monster = (name: string, fn: (p: Pose) => Pix, w: number, h: number, poolR: number, walk?: Pose[]) => {
+    (walk ?? walkPoses(w, h)).forEach((p, i) => add(name + '_walk' + i, fn(p)));
     add(name + '_idle', fn({}));
     add(name + '_atk0', fn({ atk: 1 }));
     add(name + '_atk1', fn({ atk: 2 }));
@@ -605,6 +606,12 @@ function buildFrames(): Map<string, { pix: Pix; anchor: 'bottom' | 'center' }> {
   monster('hellflamer', (p) => hereticMarine('hellflamer', p), 76, 86, 18);
   monster('terminator', (p) => hereticMarine('terminator', p), 100, 104, 24);
   monster('sorcerer', sorcerer, 84, 100, 20);
+  // ---- late war: flyer, shield brute, final boss
+  monster('harrier', harrier, 80, 64, 14, [{ bob: 0 }, { bob: 1 }, { bob: 2 }, { bob: 3 }]);
+  monster('bulwark', bulwark, 92, 96, 22);
+  monster('archon', archon, 136, 140, 36);
+  for (let k = 0; k < 2; k++) add('acid' + k, acidOrb(k), 'center');
+  for (let k = 0; k < 2; k++) add('sigil' + k, sigilRing(k), 'center');
   for (let k = 0; k < 2; k++) add('hbolt' + k, heresyBolt(k), 'center');
   for (let k = 0; k < 2; k++) add('orb' + k, soulOrb(k), 'center');
   for (let k = 0; k < 2; k++) add('shield' + k, hellShield(k), 'center');

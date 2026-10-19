@@ -32,7 +32,7 @@ export class Chainsword implements Weapon {
         return 0;
       }
       this.spinT = SPIN.time;
-      this.spinCD = SPIN.cooldown;
+      this.spinCD = ctx.hasMod('chainsword') ? SPIN.cooldown * 0.5 : SPIN.cooldown;
       this.spinTick = 0;
       ctx.sound('chainsword_swing', null, { pitch: 0.8, volume: 1.3 });
       ctx.noise(ctx.player.pos, 20);
@@ -43,7 +43,8 @@ export class Chainsword implements Weapon {
     this.spinTick -= dt;
     if (this.spinTick <= 0) {
       this.spinTick = 0.1;
-      const n = ctx.playerSpin(SPIN.radius, SPIN.damage);
+      const up = ctx.hasMod('chainsword');
+      const n = ctx.playerSpin(SPIN.radius * (up ? 1.3 : 1), SPIN.damage * (up ? 1.4 : 1));
       if (n > 0) {
         this.lastHit = 0;
         ctx.shake.add(0.12);

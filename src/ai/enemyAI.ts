@@ -181,8 +181,14 @@ function applyPhysics(e: Enemy, dt: number, ctx: GameCtx, mx: number, mz: number
     e.pos.z += kz * dt * 0.5;
     w.resolve(e, STEP);
   }
-  const ground = w.groundAt(e.pos.x, e.pos.z, e.radius, e.pos.y, STEP);
-  if (e.pos.y > ground + 0.02) {
+  const ground = w.groundAt(e.pos.x, e.pos.z, e.radius, e.def.fly && e.solid ? e.pos.y - e.hover : e.pos.y, STEP);
+  if (e.def.fly && e.solid) {
+    // flyers glide to their hover height (with a gentle bob), no gravity
+    const ceil = w.ceilAt(e.pos.x, e.pos.z, e.radius);
+    const target = Math.min(ground + e.hover + Math.sin(e.animT * 2.3) * 0.25, ceil - e.height - 0.2);
+    e.pos.y += (target - e.pos.y) * Math.min(1, dt * (e.state === 'attack' ? 7 : 3));
+    e.vy = 0;
+  } else if (e.pos.y > ground + 0.02) {
     e.vy -= 18 * dt;
     e.pos.y = Math.max(ground, e.pos.y + e.vy * dt);
     if (e.pos.y <= ground) e.vy = 0;

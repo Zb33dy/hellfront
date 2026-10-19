@@ -2,6 +2,7 @@ import type { VoiceLine } from './subtitles';
 
 const v = (id: string, en: string, tr: string): VoiceLine => ({ id, file: `voice/${id}.mp3`, en, tr });
 const s = (id: string, en: string, tr: string): VoiceLine => ({ id, file: `voice/${id}.mp3`, en, tr, speaker: 'subs.sorcerer', dry: true });
+const a = (id: string, en: string, tr: string): VoiceLine => ({ id, file: `voice/${id}.mp3`, en, tr, speaker: 'subs.archon', dry: true });
 
 // Radio script for Chapters 2–5. Same speaker (Command); lines without a recorded file fall back
 // to procedural radio chatter, and the subtitle carries the line.
@@ -96,4 +97,24 @@ export const CAMPAIGN_LINES: VoiceLine[] = [
     'Düştü! Pencere açık! Hellfront, eve dön!'),
   v('v5_complete', 'Welcome home, marine. Welcome home.',
     'Eve hoş geldin asker. Eve hoş geldin.'),
+  // Chapter 6 — The Heart
+  v('v6_intro', 'Hellfront, the concrete cracked. Something followed you home. We are dropping you back down. Find the heart of this and stop it.',
+    'Hellfront, beton çatladı. Bir şey seni eve kadar takip etti. Seni tekrar aşağı bırakıyoruz. Bunun kalbini bul ve durdur.'),
+  v('v6_lava', 'Flyers over the slag. Keep moving, and shoot them out of the sky.',
+    'Cürufun üstünde uçanlar var. Hareket et ve onları gökten indir.'),
+  v('v6_gauntlet', 'The doors just sealed behind you. Every contact we have ever logged is coming at once. Hold!',
+    'Kapılar arkandan mühürlendi. Kaydettiğimiz her düşman aynı anda geliyor. Dayan!'),
+  v('v6_cleared', 'Gauntlet is clear. The way north is open. That reading at the centre is not a demon, marine. It is a god.',
+    'Koridor temiz. Kuzeye yol açık. Merkezdeki o okuma bir iblis değil asker. Bir tanrı.'),
+  v('v6_boss', 'The Archon. Everything you have learned, use it now!',
+    'Arkon. Öğrendiğin her şeyi, şimdi kullan!'),
+  v('v6_dead', 'It is over. The heart is dead. Window open. Come home, Hellfront. For real this time.',
+    'Bitti. Kalp öldü. Pencere açık. Eve dön Hellfront. Bu sefer gerçekten.'),
+  v('v6_complete', 'Welcome home, marine. Stand down. You have earned it.',
+    'Eve hoş geldin asker. Rahat. Bunu hak ettin.'),
+  a('a_taunt1', 'You killed my servants and called it war. This is war.', 'Hizmetkârlarımı öldürdün ve buna savaş dedin. Savaş budur.'),
+  a('a_taunt2', 'Your kind builds walls. Mine eats them.', 'Senin türün duvarlar örer. Benimki onları yer.'),
+  a('a_taunt3', 'Every wound you give me, the deep gives back.', 'Bana açtığın her yarayı, derinlik geri verir.'),
+  a('a_phase2', 'Rise, my host. Bring me his heart.', 'Kalk ordum. Bana kalbini getirin.'),
+  a('a_phase3', 'Enough! I will tear this hell down around you!', 'Yeter! Bu cehennemi başına yıkacağım!'),
 ];

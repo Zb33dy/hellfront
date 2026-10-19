@@ -13,6 +13,7 @@ const GOLD: RGB = [1, 0.75, 0.35];
 const EXHIBITS: EnemyKind[] = [
   'zombieman', 'imp', 'pinky', 'ironclad', 'wraith', 'executioner', 'boltgunner',
   'hellflamer', 'terminator', 'warhound', 'warden', 'core', 'sovereign', 'sorcerer',
+  'harrier', 'bulwark', 'archon',
 ];
 const WEAPON_PICKUPS: PickupKind[] = ['shotgun', 'chainsword', 'sniper', 'launcher', 'bolter', 'flamer', 'grenades'];
 
@@ -27,7 +28,7 @@ function galleryThings(): ThingDef[] {
 }
 
 const galleryLights: LightDef[] = [];
-for (let i = 0; i < 7; i++) {
+for (let i = 0; i < 9; i++) {
   galleryLights.push(L(8 + i * 9, 5.5, 9, WARM, 1.4, 12, { shaft: true }));
   galleryLights.push(L(8 + i * 9, 18.5, 9, WARM, 1.4, 12, { shaft: true }));
   galleryLights.push(L(8 + i * 9, 12, 2.2, GOLD, 0.9, 6));
@@ -43,13 +44,13 @@ export const GALLERY: LevelData = {
   startLoadout: { weapons: ['pistol'], bullets: 200, shells: 0, health: 100, armor: 100 },
   completeVoice: '',
   ambience: { alarm: false },
-  width: 72,
+  width: 90,
   height: 24,
   defaultWall: 'metalPanel',
   parTime: 0,
   zones: [
-    { id: 'hall', rect: [2, 2, 66, 20], floor: 0, ceil: 10, floorTex: 'hangarFloor', ceilTex: 'ceilGrid', wallTex: 'metalPanel', stepTex: 'hazard', ambient: [0.16, 0.15, 0.15] },
-    { id: 'walk', rect: [2, 10, 66, 4], floor: 0.2, ceil: 10, floorTex: 'floorGrate', ceilTex: 'ceilGrid', wallTex: 'metalPanel', stepTex: 'hazard', ambient: [0.16, 0.15, 0.15] },
+    { id: 'hall', rect: [2, 2, 84, 20], floor: 0, ceil: 10, floorTex: 'hangarFloor', ceilTex: 'ceilGrid', wallTex: 'metalPanel', stepTex: 'hazard', ambient: [0.16, 0.15, 0.15] },
+    { id: 'walk', rect: [2, 10, 84, 4], floor: 0.2, ceil: 10, floorTex: 'floorGrate', ceilTex: 'ceilGrid', wallTex: 'metalPanel', stepTex: 'hazard', ambient: [0.16, 0.15, 0.15] },
   ],
   solids: [],
   wallPaint: [{ rect: [1, 2, 1, 20], tex: 'computer' }],

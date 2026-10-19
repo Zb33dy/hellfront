@@ -109,7 +109,7 @@ export const WEAPON_SLOTS: WeaponId[] = ['pistol', 'shotgun', 'chainsword', 'sni
 export const ROCKET = { speed: 32, damage: 140, radius: 5.5, interval: 0.85 };
 export const WEAPON_SWITCH_TIME = 0.22;
 
-export type EnemyKind = 'zombieman' | 'imp' | 'pinky' | 'ironclad' | 'warden' | 'executioner' | 'core' | 'wraith' | 'sovereign' | 'warhound' | 'boltgunner' | 'hellflamer' | 'terminator' | 'sorcerer';
+export type EnemyKind = 'zombieman' | 'imp' | 'pinky' | 'ironclad' | 'warden' | 'executioner' | 'core' | 'wraith' | 'sovereign' | 'warhound' | 'boltgunner' | 'hellflamer' | 'terminator' | 'sorcerer' | 'harrier' | 'bulwark' | 'archon';
 export type DamageType = 'bullet' | 'pellet' | 'melee' | 'fireball' | 'blast' | 'saw' | 'flame';
 
 export interface EnemyDef {
@@ -136,6 +136,8 @@ export interface EnemyDef {
   dmgMul?: Partial<Record<DamageType, number>>;
   /** Shows a boss health bar with this i18n name key. */
   bossName?: string;
+  /** Flying monster: hover height above the floor (m). */
+  fly?: number;
 }
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
@@ -234,6 +236,27 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     rangedWindup: 1.1, rangedCooldown: [1.2, 2.0], rangedDamage: [40, 55], rangedRange: 70,
     gibThreshold: 99999, score: 1, mass: 0, bossName: 'boss.sorcerer',
   },
+  // Late war: winged carrion flyer. Hovers out of reach, spits acid, dives in with its talons.
+  harrier: {
+    hp: 70, speed: 5.2, radius: 0.55, height: 1.4, painChance: 0.5, painTime: 0.25,
+    sightRange: 50, reaction: 0.3, meleeRange: 1.8, meleeWindup: 0.45, meleeDamage: [9, 15],
+    rangedWindup: 0.5, rangedCooldown: [1.6, 2.8], rangedDamage: [7, 11], rangedRange: 34,
+    gibThreshold: 30, score: 1, mass: 0.9, fly: 3.4,
+  },
+  // Late war: a brute behind a tower shield. The front is near-immune; flank it, blow it up, or parry the bash.
+  bulwark: {
+    hp: 280, speed: 2.5, radius: 0.75, height: 2.3, painChance: 0.08, painTime: 0.3,
+    sightRange: 40, reaction: 0.5, meleeRange: 2.5, meleeWindup: 0.75, meleeDamage: [18, 28],
+    rangedWindup: 0.9, rangedCooldown: [3.2, 5], rangedDamage: [14, 20], rangedRange: 24,
+    gibThreshold: 100, score: 1, mass: 0.12,
+  },
+  // Chapter 6 final boss.
+  archon: {
+    hp: 5200, speed: 2.6, radius: 1.3, height: 3.9, painChance: 0.02, painTime: 0.2,
+    sightRange: 90, reaction: 0.6, meleeRange: 5.0, meleeWindup: 0.8, meleeDamage: [30, 42],
+    rangedWindup: 0.7, rangedCooldown: [1.1, 1.8], rangedDamage: [12, 18], rangedRange: 80,
+    gibThreshold: 99999, score: 1, mass: 0, bossName: 'boss.archon',
+  },
 };
 
 export const PINKY_CHARGE = { range: 9, windup: 0.4, speed: 11.5, duration: 0.9, cooldown: [2.5, 4] as [number, number] };
@@ -247,12 +270,15 @@ export const BARREL = { hp: 20, radius: 0.42, height: 1.15, blastRadius: 4.2, bl
 export const DOOR = { openTime: 0.55, stayOpen: 4.5, thickness: 0.45 };
 export const LIFT = { speed: 2.2, wait: 0 };
 
-export type Difficulty = 'easy' | 'normal' | 'hard';
+/** ultra = Ultra-Nightmare (one life), turbo = normal rules at 1.5x game speed. */
+export type Difficulty = 'easy' | 'normal' | 'hard' | 'ultra' | 'turbo';
 
 export const DIFFICULTY: Record<Difficulty, { enemyDamage: number; enemyHealth: number; ammo: number; aggression: number }> = {
   easy: { enemyDamage: 0.5, enemyHealth: 0.8, ammo: 1.5, aggression: 0.75 },
   normal: { enemyDamage: 1.0, enemyHealth: 1.0, ammo: 1.0, aggression: 1.0 },
   hard: { enemyDamage: 1.4, enemyHealth: 1.2, ammo: 0.85, aggression: 1.3 },
+  ultra: { enemyDamage: 1.6, enemyHealth: 1.3, ammo: 0.85, aggression: 1.45 },
+  turbo: { enemyDamage: 1.0, enemyHealth: 1.0, ammo: 1.0, aggression: 1.15 },
 };
 
 export const PICKUPS = {

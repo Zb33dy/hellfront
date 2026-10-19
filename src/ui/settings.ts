@@ -1,6 +1,7 @@
 import { t, type Lang } from '../core/i18n';
 import { ACTIONS, keyLabel, type Action, type Settings, type SettingsStore } from '../core/settingsStore';
 import { button, h, MenuNav, type UISound } from './dom';
+import { progress, type PaletteId, type SkinId } from '../core/progress';
 
 type Tab = 'audio' | 'video' | 'controls' | 'game';
 
@@ -120,12 +121,37 @@ export class SettingsScreen {
       toggle(t('settings.subtitles'), 'subtitles');
     } else if (this.tab === 'video') {
       slider(t('settings.fov'), 'fov', 60, 110, 1, (v) => `${v}°`);
+      // live top-down preview of the field of view
+      const prev = h('canvas', { class: 'fov-preview', attrs: { width: '220', height: '70' } }) as HTMLCanvasElement;
+      const drawFov = (deg: number) => {
+        const c = prev.getContext('2d');
+        if (!c) return;
+        c.clearRect(0, 0, 220, 70);
+        const a = (deg * Math.PI) / 360;
+        c.fillStyle = 'rgba(255,170,60,0.25)';
+        c.strokeStyle = '#ffb040';
+        c.beginPath();
+        c.moveTo(110, 66);
+        c.lineTo(110 - Math.tan(a) * 62, 4);
+        c.lineTo(110 + Math.tan(a) * 62, 4);
+        c.closePath();
+        c.fill();
+        c.stroke();
+        c.fillStyle = '#ffd890';
+        c.fillRect(106, 62, 8, 8);
+      };
+      drawFov(d.fov);
+      const fovInput = rows[rows.length - 1].querySelector('input');
+      fovInput?.addEventListener('input', () => drawFov(Number(fovInput.value)));
+      body.append(h('div', { class: 'row fov-row' }, [prev]));
       choice(t('settings.renderScale'), 'renderScale', [[1, '100%'], [2, '50%'], [3, '33%']]);
       toggle(t('settings.bloom'), 'bloom');
       toggle(t('settings.grain'), 'grain');
       toggle(t('settings.retroLight'), 'retroLight');
+      choice(t('settings.colorblind'), 'colorblind', [['off', t('cb.off')], ['protan', t('cb.protan')], ['deutan', t('cb.deutan')], ['tritan', t('cb.tritan')]]);
     } else if (this.tab === 'controls') {
       slider(t('settings.sens'), 'sensitivity', 0.2, 3, 0.05, (v) => v.toFixed(2));
+      slider(t('settings.scopeSens'), 'scopeSens', 0.1, 1.5, 0.05, (v) => v.toFixed(2));
       toggle(t('settings.invertY'), 'invertY');
       body.append(h('div', { class: 'hint', text: t('settings.rebindHint') }));
       for (const a of ACTIONS) {
@@ -141,7 +167,7 @@ export class SettingsScreen {
         rows.push(row);
         body.append(row);
       }
-      for (const [k, v] of [['act.fire', 'LMB'], ['act.cycle', 'WHEEL']]) {
+      for (const [k, v] of [['act.fire', 'LMB'], ['act.alt', 'RMB'], ['act.cycle', 'WHEEL']]) {
         const row = h('div', { class: 'row' });
         row.append(h('span', { text: t(k) }), h('div', { class: 'val' }, [h('div', { class: 'bind', text: v })]));
         body.append(row);
@@ -149,6 +175,32 @@ export class SettingsScreen {
     } else {
       choice<Lang>(t('settings.language'), 'language', [['en', 'ENGLISH'], ['tr', 'TÜRKÇE']]);
       toggle(t('settings.subtitles'), 'subtitles');
+      // cosmetics unlocked by achievements
+      const cosmetic = <T extends string>(label: string, list: T[], cur: T, set: (v: T) => void, name: (v: T) => string) => {
+        const row = h('div', { class: 'row' });
+        const val = h('div', { class: 'val' });
+        list.forEach((v) => {
+          const c = h('div', { class: 'choice' + (cur === v ? ' sel' : ''), text: name(v) });
+          c.addEventListener('click', () => {
+            this.sound('ui_click');
+            set(v);
+            this.render();
+          });
+          val.append(c);
+        });
+        row.append(h('span', { text: label }), val);
+        (row as HTMLElement & { adjust?: (dir: number) => void }).adjust = (dir) => {
+          const i = list.indexOf(cur);
+          set(list[(i + dir + list.length) % list.length]);
+          this.sound('ui_click');
+          this.render();
+        };
+        rows.push(row);
+        body.append(row);
+      };
+      cosmetic<PaletteId>(t('settings.palette'), progress.palettes(), progress.palette, (v) => (progress.palette = v), (v) => t('palette.' + v));
+      cosmetic<SkinId>(t('settings.skin'), progress.skins(), progress.skin, (v) => (progress.skin = v), (v) => t('skin.' + v));
+      body.append(h('div', { class: 'hint', text: t('settings.cosmeticHint') }));
     }
     box.append(body);
     const foot = h('div', { class: 'settings-foot' });

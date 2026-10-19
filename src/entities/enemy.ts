@@ -66,6 +66,13 @@ export abstract class Enemy {
   frozen = false;
   /** Siege 'swift' modifier. */
   speedMul = 1;
+  /** Direction of the killing blow (corpse falls away from it). */
+  readonly deathDir = new Vector3();
+  /** Flyers: current hover height above the floor. */
+  hover = 0;
+  /** Burning (upgrade effects): seconds left and damage per second. */
+  burnT = 0;
+  burnDps = 0;
 
   constructor(kind: EnemyKind, x: number, z: number, angleDeg: number, hpMul: number) {
     this.def = ENEMIES[kind];
@@ -77,6 +84,7 @@ export abstract class Enemy {
     this.spawn.set(x, 0, z);
     this.yaw = (angleDeg * Math.PI) / 180;
     this.spawnYaw = this.yaw;
+    this.hover = this.def.fly ?? 0;
   }
 
   get alive(): boolean {
@@ -134,13 +142,21 @@ export abstract class Enemy {
 
   damage(amount: number, dir: Vector3, kind: DamageKind, ctx: GameCtx): void {
     if (!this.alive || this.frozen) return;
-    amount *= this.def.dmgMul?.[kind] ?? 1;
+    if (!ctx.piercingShot) amount *= this.def.dmgMul?.[kind] ?? 1;
     this.hp -= amount;
     this.painFlash = 0.12;
     const mass = this.def.mass ?? (this.kind === 'imp' ? 0.7 : 1);
     this.knock.addInPlace(new Vector3(dir.x, 0, dir.z).normalize().scale(Math.min(amount, 60) * 0.11 * mass));
     if (this.hp <= 0) {
       const over = -this.hp;
+      // the body goes where the hit sends it: explosions launch, heavy hits throw it back
+      const fling = Math.min(amount, 160) * 0.09 * mass + 2.5;
+      this.knock.addInPlace(new Vector3(dir.x, 0, dir.z).normalize().scale(fling));
+      if (kind === 'blast' && !this.def.bossName) {
+        this.vy = 4 + Math.min(amount, 220) / 45;
+        this.pos.y += 0.06;
+      }
+      this.deathDir.copyFrom(dir);
       this.gibbed = over >= this.def.gibThreshold || (kind === 'blast' && over >= this.def.gibThreshold * 0.5) || (kind === 'saw' && this.kind !== 'pinky' && over > 4 && Math.random() < 0.3);
       this.setState('dying');
       this.deathT = 0;

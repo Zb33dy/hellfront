@@ -12,6 +12,8 @@ export interface PlayerState {
   ammo: Record<AmmoType, number>;
   weapons: WeaponId[];
   keys: KeyColor[];
+  /** Weapon upgrades owned. */
+  mods?: WeaponId[];
 }
 
 export interface PlayerEvents {
@@ -21,6 +23,10 @@ export interface PlayerEvents {
   onJump(): void;
   onDash(): void;
   onParry(): void;
+  onWallJump(): void;
+  onSlamStart(): void;
+  /** Ground slam landed (after a rocket jump). */
+  onSlam(impact: number): void;
 }
 
 /** First-person body: Quake-style acceleration, circle collision with wall sliding, step smoothing. */
@@ -36,6 +42,7 @@ export class Player {
   ammo: Record<AmmoType, number> = { bullets: PICKUPS.startBullets, shells: 0, rounds: 0, rockets: 0, bolts: 0, fuel: 0, grenades: 0 };
   weapons = new Set<WeaponId>(['pistol']);
   keys = new Set<KeyColor>();
+  mods = new Set<WeaponId>();
   onGround = true;
   dead = false;
   deathTime = 0;
@@ -63,6 +70,14 @@ export class Player {
   private landedT = 1;
   private dashDir = new Vector3();
   private lastSprintTap = -1e9;
+  /** Wall running: time left on this wall, the wall's normal, wall jumps since leaving the ground. */
+  wallRunT = 1.4;
+  wallRunning = false;
+  readonly wallNormal = new Vector3();
+  wallJumps = 0;
+  /** Set by a rocket blast that launched the player: crouch in the air slams down. */
+  slamArmed = false;
+  slamming = false;
 
   constructor(private world: World, private ev: PlayerEvents) {}
 
@@ -78,6 +93,24 @@ export class Player {
     this.recoil = 0;
     this.crouch = 0;
     this.height = PLAYER.height;
+    this.slamArmed = this.slamming = this.wallRunning = false;
+    this.wallJumps = 0;
+  }
+
+  /** Normal of the nearest wall within reach of the body (horizontal probes), or null. */
+  private wallNear(reach: number): Vector3 | null {
+    const o = new Vector3(this.pos.x, this.pos.y + 1.0, this.pos.z);
+    let best: Vector3 | null = null;
+    let bt = reach;
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      const h = this.world.raycast(o, new Vector3(Math.sin(a), 0, Math.cos(a)), reach);
+      if ((h.kind === 'wall' || h.kind === 'door') && h.t < bt && Math.abs(h.normal.y) < 0.3) {
+        bt = h.t;
+        best = new Vector3(h.normal.x, 0, h.normal.z).normalize();
+      }
+    }
+    return best;
   }
 
   get eye(): Vector3 {
@@ -96,7 +129,7 @@ export class Player {
   }
 
   get state(): PlayerState {
-    return { health: this.health, armor: this.armor, ammo: { ...this.ammo }, weapons: [...this.weapons], keys: [...this.keys] };
+    return { health: this.health, armor: this.armor, ammo: { ...this.ammo }, weapons: [...this.weapons], keys: [...this.keys], mods: [...this.mods] };
   }
 
   applyState(s: PlayerState): void {
@@ -105,6 +138,7 @@ export class Player {
     this.ammo = Object.assign({ bullets: 0, shells: 0, rounds: 0, rockets: 0, bolts: 0, fuel: 0, grenades: 0 }, s.ammo);
     this.weapons = new Set(s.weapons);
     this.keys = new Set(s.keys);
+    this.mods = new Set(s.mods ?? []);
   }
 
   addAmmo(type: AmmoType, n: number): boolean {
@@ -211,6 +245,16 @@ export class Player {
       const add = Math.min(Math.max(maxSpeed - cur, 0), PLAYER.accel * dt);
       this.vel.x += wx * add;
       this.vel.z += wz * add;
+    } else if (input.pressed('jump') && this.wallJumps < 3 && this.wallNear(this.radius + 0.55)) {
+      // wall jump: kick off the nearest wall
+      const n = this.wallNear(this.radius + 0.55)!;
+      this.vel.x = this.vel.x * 0.6 + n.x * 7.5 + wx * 2;
+      this.vel.z = this.vel.z * 0.6 + n.z * 7.5 + wz * 2;
+      this.vel.y = PLAYER.jumpVel * 1.3;
+      this.wallJumps++;
+      this.wallRunning = false;
+      this.wallRunT = 0;
+      this.ev.onWallJump();
     } else {
       // Quake air control: only the part of the wish direction you are not already moving along
       // accelerates, so strafing + turning in the air builds speed (strafe jumping / bunny hopping)
@@ -239,8 +283,32 @@ export class Player {
         this.pos.y = ground; // follow steps and lifts
       }
     }
+    // wall run: airborne, pushing forward along a wall at speed — gravity barely pulls
+    this.wallRunning = false;
+    if (!this.onGround && !this.slamming && fwd > 0 && this.speed > 5 && this.wallRunT > 0) {
+      const n = this.wallNear(this.radius + 0.4);
+      if (n) {
+        const into = Math.abs(this.vel.x * n.x + this.vel.z * n.z) / Math.max(0.01, this.speed);
+        if (into < 0.6) {
+          this.wallRunning = true;
+          this.wallNormal.copyFrom(n);
+          this.wallRunT -= dt;
+          // hug the wall slightly and float
+          this.vel.x -= n.x * 2 * dt;
+          this.vel.z -= n.z * 2 * dt;
+          if (this.vel.y < -1) this.vel.y = damp(this.vel.y, -1, 10, dt);
+        }
+      }
+    }
+    if (this.slamArmed && !this.onGround && !this.slamming && input.pressed('crouch')) {
+      this.slamming = true;
+      this.vel.y = -34;
+      this.vel.x *= 0.25;
+      this.vel.z *= 0.25;
+      this.ev.onSlamStart();
+    }
     if (!this.onGround) {
-      this.vel.y -= PLAYER.gravity * dt;
+      this.vel.y -= PLAYER.gravity * dt * (this.wallRunning ? 0.15 : 1);
       this.pos.y += this.vel.y * dt;
       const ceil = this.world.ceilAt(this.pos.x, this.pos.z, this.radius * 0.8);
       if (this.pos.y + this.height > ceil && this.vel.y > 0) {
@@ -254,6 +322,14 @@ export class Player {
         this.vel.y = 0;
         this.onGround = true;
         this.landedT = 0;
+        this.wallJumps = 0;
+        this.wallRunT = 1.4;
+        this.slamArmed = false;
+        if (this.slamming) {
+          this.slamming = false;
+          this.invulnT = Math.max(this.invulnT, 0.35);
+          this.ev.onSlam(impact);
+        }
         if (impact > 3) {
           this.landDip = Math.min(0.35, impact * 0.025);
           this.ev.onLand(impact);

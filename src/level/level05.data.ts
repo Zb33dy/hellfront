@@ -95,7 +95,7 @@ export const LEVEL05: LevelData = {
   titleKey: 'ch5.title',
   introKey: 'ch5.intro',
   outroKey: 'ch5.outro',
-  next: null,
+  next: 'level06',
   startLoadout: { weapons: ['pistol', 'shotgun', 'chainsword'], bullets: 140, shells: 40, health: 100, armor: 75, grenades: 4 },
   completeVoice: 'v5_complete',
   ambience: { nukage: [33, 36], alarm: false },

@@ -4,11 +4,13 @@ import { LEVEL02 } from './level02.data';
 import { LEVEL03 } from './level03.data';
 import { LEVEL04 } from './level04.data';
 import { LEVEL05 } from './level05.data';
+import { LEVEL06 } from './level06.data';
 import { SIEGE } from './siege.data';
 import { BATTLE, GALLERY, TUTORIAL } from './modes.data';
+import { withSecrets } from './secrets';
 
 /** Campaign order. Each level's `next` points at the following id. */
-export const LEVEL_ORDER: LevelData[] = [LEVEL01, LEVEL02, LEVEL03, LEVEL04, LEVEL05];
+export const LEVEL_ORDER: LevelData[] = [LEVEL01, LEVEL02, LEVEL03, LEVEL04, LEVEL05, LEVEL06].map(withSecrets);
 
 export function getLevel(id: string | null | undefined): LevelData | null {
   if (id === 'siege') return SIEGE;

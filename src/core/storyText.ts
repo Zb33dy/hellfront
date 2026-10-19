@@ -32,7 +32,7 @@ export const STORY_EN: Record<string, string> = {
 
   'ch5.title': 'THRONE OF ASH',
   'ch5.intro': 'The citadel rises out of the ash like a broken crown. Every demon you have killed was a door it opened.<br>Command is trying to hold a return window open on your beacon. Kill the Sovereign, and come home.',
-  'ch5.outro': 'The Sovereign falls, and the sky of ash cracks like glass. Through the crack: floodlights, concrete, a hangar door.<br>You step through. Behind you the rift folds shut with a sound like a held breath let go.<br><br>Hangar Seven is sealed. The Aurora shaft is filled with concrete a week later.<br>Nobody asks what the marine called <b>HELLFRONT</b> saw down there. Nobody wants the answer.<br><br><b>THANK YOU FOR PLAYING.</b>',
+  'ch5.outro': 'The Sovereign falls, and the sky of ash cracks like glass. Through the crack: floodlights, concrete, a hangar door.<br>You step through. Behind you the rift folds shut with a sound like a held breath let go.<br><br>Hangar Seven is sealed. The Aurora shaft is filled with concrete a week later.<br>Nobody asks what the marine called <b>HELLFRONT</b> saw down there. Nobody wants the answer.<br><br><b>It does not stay sealed.</b>',
 
   'boss.warden': 'THE WARDEN — FORGE MASTER',
   'boss.core': 'BREACH CORE',
@@ -216,7 +216,7 @@ export const STORY_TR: Record<string, string> = {
 
   'ch5.title': 'KÜL TAHTI',
   'ch5.intro': 'Hisar külün içinden kırık bir taç gibi yükseliyor. Öldürdüğün her iblis onun açtığı bir kapıydı.<br>Komuta, işaretçin üzerinden bir dönüş penceresini açık tutmaya çalışıyor. Hükümdar\'ı öldür ve eve dön.',
-  'ch5.outro': 'Hükümdar düşüyor ve külden gökyüzü cam gibi çatlıyor. Çatlağın ardında: projektörler, beton, bir hangar kapısı.<br>İçinden geçiyorsun. Arkanda yarık, tutulan bir nefesin bırakılması gibi bir sesle kapanıyor.<br><br>Hangar Yedi mühürlendi. Aurora kuyusu bir hafta sonra betonla dolduruldu.<br>Kimse <b>HELLFRONT</b> çağrı kodlu askerin orada ne gördüğünü sormadı. Kimse cevabı bilmek istemedi.<br><br><b>OYNADIĞIN İÇİN TEŞEKKÜRLER.</b>',
+  'ch5.outro': 'Hükümdar düşüyor ve külden gökyüzü cam gibi çatlıyor. Çatlağın ardında: projektörler, beton, bir hangar kapısı.<br>İçinden geçiyorsun. Arkanda yarık, tutulan bir nefesin bırakılması gibi bir sesle kapanıyor.<br><br>Hangar Yedi mühürlendi. Aurora kuyusu bir hafta sonra betonla dolduruldu.<br>Kimse <b>HELLFRONT</b> çağrı kodlu askerin orada ne gördüğünü sormadı. Kimse cevabı bilmek istemedi.<br><br><b>Mühür tutmuyor.</b>',
 
   'boss.warden': 'GARDİYAN — DÖKÜM USTASI',
   'boss.core': 'YARIK ÇEKİRDEĞİ',

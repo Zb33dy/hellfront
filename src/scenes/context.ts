@@ -45,6 +45,14 @@ export interface GameCtx {
   sound(id: SoundId, pos?: Vector3 | null, opts?: PlayOpts): SoundHandle;
   lightAt(x: number, z: number): [number, number, number];
   damagePlayer(amount: number, from: Vector3, kind: DamageKind, opts?: HitOpts): void;
+  /** True during an armor-piercing player shot (pistol upgrade): ignores shields and plating. */
+  piercingShot: boolean;
+  /** Weapon upgrade owned. */
+  hasMod(id: import('../core/config').WeaponId): boolean;
+  /** Sets a monster on fire for `t` seconds. */
+  ignite(e: Enemy, t: number, dps: number): void;
+  /** Burning ground that ignites monsters standing in it. */
+  firePool(pos: Vector3, radius: number, t: number): void;
   /** True while the player is hidden from monsters (invisibility ability). */
   readonly playerHidden: boolean;
   damageEnemy(e: Enemy, amount: number, dir: Vector3, kind: DamageKind, hitPos?: Vector3): void;

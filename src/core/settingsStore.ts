@@ -37,7 +37,10 @@ export interface Settings {
   voice: number;
   music: number;
   sensitivity: number;
+  /** Mouse sensitivity multiplier while scoped. */
+  scopeSens: number;
   invertY: boolean;
+  colorblind: 'off' | 'protan' | 'deutan' | 'tritan';
   fov: number;
   renderScale: 1 | 2 | 3; // hardware scaling divisor: 100% / 50% / 33%
   bloom: boolean;
@@ -57,7 +60,9 @@ export function defaultSettings(): Settings {
     voice: 0.9,
     music: 0.6,
     sensitivity: 1.0,
+    scopeSens: 0.35,
     invertY: false,
+    colorblind: 'off',
     fov: 90,
     renderScale: 1,
     bloom: true,

@@ -6,7 +6,7 @@ import { GameClock } from './time';
 import { SaveStore, type SaveData } from './save';
 import { getLang, setLang, t } from './i18n';
 import { nextFrame } from './util';
-import type { Difficulty } from './config';
+import { WEAPON_SLOTS, type Difficulty, type WeaponId } from './config';
 import { AudioManager } from '../audio/audioManager';
 import { VOICE_LINES, lineText } from '../audio/subtitles';
 import { UIManager } from '../ui/uiManager';
@@ -19,6 +19,8 @@ import type { PlayerState } from '../entities/player';
 import { SiegeController, siegeBest, siegeStartOptions } from '../scenes/siege';
 import { availableFor, unlockAfterChapter, type AbilityId, ABILITY_ORDER } from '../scenes/abilities';
 import type { LevelStats } from '../ui/levelComplete';
+import { ACHIEVEMENTS, PALETTE_FILTER, SKIN_FILTER, progress, todayKey } from './progress';
+import { SaveStore as Saves } from './save';
 
 export type GameState = 'boot' | 'bootReady' | 'menu' | 'loading' | 'ready' | 'playing' | 'paused' | 'shop' | 'choose' | 'dead' | 'complete' | 'chapter';
 
@@ -55,7 +57,14 @@ export class Game {
     const sound = (s: UISound) => this.audio.play(s);
     this.ui = new UIManager(root, this.settings, sound, {
       onNewGame: (d, id) => this.startLevel(id, d, null, null),
+      onDaily: () => {
+        SiegeController.startRound = 1;
+        SiegeController.daily = true;
+        this.startLevel('siege', 'normal', null, null);
+      },
+      onAchievements: () => this.showAchievements(),
       onSiege: () => {
+        SiegeController.daily = false;
         const opts = siegeStartOptions();
         this.ui.choice.show(t('siege.lobby'), opts.map((r) => ({
           id: String(r),
@@ -69,6 +78,7 @@ export class Game {
       },
       onMode: (id) => {
         SiegeController.startRound = 1;
+        SiegeController.daily = false;
         this.startLevel(id, 'normal', null, null);
       },
       chapters: () => LEVEL_ORDER.map((l) => ({ id: l.id, label: `${t('chapter.n', { n: l.chapter })} — ${t(l.titleKey)}` })),
@@ -94,15 +104,7 @@ export class Game {
       },
       onCompleteContinue: () => {
         this.ui.complete.hide();
-        const data = getLevel(this.levelId);
-        const next = getLevel(data?.next);
-        const title = data && data.chapter === 0 ? t(data.titleKey) : next ? t('chapter.end', { n: data?.chapter ?? 1 }) : t('ending.title');
-        this.state = 'chapter';
-        this.audio.music.setIntensity('calm');
-        void this.audio.playNarration('n_ch' + (data?.chapter ?? 1)).then((dur) => {
-          const unlock = this.newAbility ? `<br><br><b class="unlock">${t('ability.unlocked', { name: t('ability.' + this.newAbility) })}</b>` : '';
-          if (this.state === 'chapter') this.ui.chapter.show(title, t(data?.outroKey ?? 'ch1.outro') + unlock, !!next, dur || 6);
-        });
+        this.offerUpgrade(() => this.chapterOutro());
       },
       onChapterMenu: () => this.quitToMenu(),
       onChapterNext: () => {
@@ -112,6 +114,69 @@ export class Game {
       onLoadingConfirm: () => this.confirmLoading(),
       onShopClose: () => this.closeShop(),
     });
+    this.wireRest(canvas);
+    this.canvas = canvas;
+    progress.onUnlock = (id) => {
+      this.audio.play('secret_found', { volume: 0.9 });
+      if (this.level) this.ui.hud.banner(t('ach.unlocked'), t('ach.' + id));
+    };
+    progress.onChange(() => this.applyCosmetics());
+    installColorFilters();
+    this.applyCosmetics();
+  }
+
+  private canvas!: HTMLCanvasElement;
+
+  /** Palette (whole 3D view), colour-blind assist and weapon finish. */
+  applyCosmetics(): void {
+    const cb = this.settings.data.colorblind ?? 'off';
+    const f = [PALETTE_FILTER[progress.palette], cb !== 'off' ? `url(#cb-${cb})` : ''].filter(Boolean).join(' ');
+    if (this.canvas) this.canvas.style.filter = f;
+    this.ui.viewModel.el.style.filter = SKIN_FILTER[progress.skin];
+  }
+
+  /** Chapter end: narration, then the chapter card. */
+  private chapterOutro(): void {
+    const data = getLevel(this.levelId);
+    const next = getLevel(data?.next);
+    const title = data && data.chapter === 0 ? t(data.titleKey) : next ? t('chapter.end', { n: data?.chapter ?? 1 }) : t('ending.title');
+    this.state = 'chapter';
+    this.audio.music.setIntensity('calm');
+    void this.audio.playNarration('n_ch' + (data?.chapter ?? 1)).then((dur) => {
+      const unlock = this.newAbility ? `<br><br><b class="unlock">${t('ability.unlocked', { name: t('ability.' + this.newAbility) })}</b>` : '';
+      if (this.state === 'chapter') this.ui.chapter.show(title, t(data?.outroKey ?? 'ch1.outro') + unlock, !!next, dur || 6);
+    });
+  }
+
+  /** Achievements list (read-only) with the cosmetics they unlock. */
+  private showAchievements(): void {
+    const list = ACHIEVEMENTS.map((a) => {
+      const got = progress.has(a.id);
+      const reward = a.palette ? t('ach.palette', { name: t('palette.' + a.palette) }) : a.skin ? t('ach.skin', { name: t('skin.' + a.skin) }) : '';
+      const prog = a.stat && a.goal && !got ? ` (${Math.min(progress.stat(a.stat), a.goal)}/${a.goal})` : '';
+      return { id: a.id, label: (got ? '✓ ' : '· ') + t('ach.' + a.id), desc: t('ach.' + a.id + '.d') + prog + (reward ? ' — ' + reward : '') };
+    });
+    this.ui.choice.show(t('menu.achievements') + ` ${progress.unlockedCount}/${ACHIEVEMENTS.length}`, list, () => {}, () => this.ui.choice.hide(), 2);
+  }
+
+  /** Campaign: a finished chapter grants one weapon upgrade of three on offer. */
+  private offerUpgrade(then: () => void): void {
+    const data = getLevel(this.levelId);
+    const carry = this.nextCarry;
+    if (!data || data.chapter < 1 || !data.next || !carry) return then();
+    const owned = new Set(carry.mods ?? []);
+    const pool = WEAPON_SLOTS.filter((w) => !owned.has(w));
+    if (!pool.length) return then();
+    const pick = pool.sort(() => Math.random() - 0.5).slice(0, 3);
+    this.ui.navEnabled = true;
+    this.ui.choice.show(t('mod.choose'), pick.map((w) => ({ id: w, label: t('mod.' + w), desc: t('mod.' + w + '.d') })), (id) => {
+      carry.mods = [...owned, id as WeaponId];
+      this.ui.choice.hide();
+      then();
+    }, null, 1);
+  }
+
+  private wireRest(canvas: HTMLCanvasElement): void {
     this.input.onLockLost = () => {
       if (this.state === 'playing') this.pause();
     };
@@ -130,6 +195,7 @@ export class Game {
   }
 
   private applySettings(s: Settings): void {
+    if (this.canvas) this.applyCosmetics();
     this.audio.setVolumes(s.master, s.sfx, s.voice);
     this.audio.music.setVolume((s.music ?? 0.6) * 0.8);
     applyRenderScale(this.engine, s.renderScale);
@@ -188,7 +254,7 @@ export class Game {
     this.state = 'choose';
     this.input.releaseLock();
     this.ui.navEnabled = true;
-    const kinds = ['zombieman', 'imp', 'pinky', 'ironclad', 'wraith', 'executioner', 'boltgunner', 'hellflamer', 'terminator', 'warhound', 'warden', 'sovereign', 'sorcerer'];
+    const kinds = ['zombieman', 'imp', 'pinky', 'ironclad', 'wraith', 'executioner', 'harrier', 'bulwark', 'boltgunner', 'hellflamer', 'terminator', 'warhound', 'warden', 'sovereign', 'sorcerer', 'archon'];
     const opts = [
       ...kinds.map((k) => ({ id: 'spawn:' + k, label: t('enemy.' + k) })),
       { id: 'god', label: t('battle.god') + (level.godMode ? ' ✓' : '') },
@@ -396,7 +462,14 @@ export class Game {
     this.input.releaseLock();
     this.ui.navEnabled = true;
     const sg = this.level?.siege;
-    this.ui.death.show(sg ? t('siege.dead', { n: sg.round, best: Math.max(sg.round, sg.best) }) : null);
+    if (this.difficulty === 'ultra' && !sg) {
+      // Ultra-Nightmare: one life. The run is over.
+      Saves.clear();
+      this.ui.death.show(t('ultra.dead'), true);
+      this.audio.muffle(true);
+      return;
+    }
+    this.ui.death.show(sg ? (sg.daily ? t('daily.dead', { n: sg.round, best: Math.max(sg.round, progress.dailyBest(todayKey())) }) : t('siege.dead', { n: sg.round, best: Math.max(sg.round, sg.best) })) : null);
     this.audio.muffle(true);
   }
 
@@ -440,7 +513,7 @@ export class Game {
         if (this.level) {
           if (this.input.locked || this.allowUnlocked) {
             this.ui.hud.clickEl.classList.remove('show');
-            this.level.update(dt, this.input);
+            this.level.update(this.difficulty === 'turbo' ? dt * 1.5 : dt, this.input);
           } else {
             this.ui.hud.clickEl.classList.add('show');
           }
@@ -483,4 +556,31 @@ export class Game {
       },
     };
   }
+}
+
+/** Injects the SVG colour matrices used by the colour-blind assist modes (once). */
+function installColorFilters(): void {
+  if (document.getElementById('cb-filters')) return;
+  const m: Record<string, string> = {
+    protan: '1 0 0 0 0  -0.255 1.255 0 0 0  0.303 -0.545 1.242 0 0  0 0 0 1 0',
+    deutan: '1 0 0 0 0  -0.4375 1.4375 0 0 0  0.2625 -0.5625 1.3 0 0  0 0 0 1 0',
+    tritan: '1.05 -0.3825 0.3325 0 0  0 1.2345 -0.2345 0 0  0 0 1 0 0  0 0 0 1 0',
+  };
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.id = 'cb-filters';
+  svg.setAttribute('width', '0');
+  svg.setAttribute('height', '0');
+  svg.style.position = 'absolute';
+  for (const [id, values] of Object.entries(m)) {
+    const fl = document.createElementNS(ns, 'filter');
+    fl.id = 'cb-' + id;
+    fl.setAttribute('color-interpolation-filters', 'linearRGB');
+    const cm = document.createElementNS(ns, 'feColorMatrix');
+    cm.setAttribute('type', 'matrix');
+    cm.setAttribute('values', values);
+    fl.append(cm);
+    svg.append(fl);
+  }
+  document.body.append(svg);
 }

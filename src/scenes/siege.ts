@@ -1,7 +1,9 @@
-import { AMMO_MAX, CELL, PLAYER, type AmmoType, type EnemyKind } from '../core/config';
+import { AMMO_MAX, CELL, PLAYER, WEAPON_SLOTS, type AmmoType, type EnemyKind, type WeaponId } from '../core/config';
 import { t } from '../core/i18n';
 import { rand } from '../core/util';
 import type { Enemy } from '../entities/enemy';
+import { Vector3 } from '@babylonjs/core';
+import { hashString, progress, seededRandom, todayKey } from '../core/progress';
 import { SIEGE_SPAWNS } from '../level/siege.data';
 import type { LevelScene } from './levelScene';
 
@@ -15,6 +17,8 @@ const POOL: { kind: EnemyKind; cost: number; from: number; weight: number }[] = 
   { kind: 'wraith', cost: 3, from: 3, weight: 3 },
   { kind: 'ironclad', cost: 4, from: 4, weight: 2 },
   { kind: 'executioner', cost: 5, from: 6, weight: 2 },
+  { kind: 'harrier', cost: 3, from: 7, weight: 3 },
+  { kind: 'bulwark', cost: 5, from: 9, weight: 2 },
   // the heretic host joins the waves once the Sorcerer has shown himself
   { kind: 'boltgunner', cost: 4, from: 16, weight: 3 },
   { kind: 'hellflamer', cost: 4, from: 16, weight: 3 },
@@ -28,6 +32,10 @@ export function siegeStartOptions(): number[] {
   for (let r = 5; r <= Math.max(15, Math.floor(best / 5) * 5); r += 5) if (r <= best || r === 15) out.push(r);
   return out;
 }
+
+/** Optional side objective for a round (pays extra souls). */
+export type RoundEvent = 'executions' | 'airKills' | 'noDamage' | 'speed' | 'hold' | 'bladeKills';
+const EVENTS: RoundEvent[] = ['executions', 'airKills', 'noDamage', 'speed', 'hold', 'bladeKills'];
 
 export type Modifier = 'swift' | 'bladeOnly' | 'darkness' | 'armored' | 'glass' | 'frenzy';
 const MODIFIERS: Modifier[] = ['swift', 'bladeOnly', 'darkness', 'armored', 'glass', 'frenzy'];
@@ -77,10 +85,23 @@ export class SiegeController {
   private spawnT = 0;
   private waveSize = 0;
   private spawned = 0;
+  private hurtThisRound = 0;
   readonly best = siegeBest();
 
   /** Set by the lobby before the level loads. */
   static startRound = 1;
+  /** Daily Siege: everyone gets the same seeded waves and modifiers today. */
+  static daily = false;
+  readonly daily = SiegeController.daily;
+  private readonly rng: () => number = SiegeController.daily ? seededRandom(hashString('hellfront-daily-' + todayKey())) : Math.random;
+  event: RoundEvent | null = null;
+  private eventCount = 0;
+  private eventGoal = 0;
+  private eventFailed = false;
+  private roundT = 0;
+  /** 'hold' event: the marked ground and seconds spent on it. */
+  eventZone: Vector3 | null = null;
+  private holdT = 0;
 
   constructor(private L: LevelScene) {
     const start = Math.max(1, SiegeController.startRound);
@@ -114,7 +135,24 @@ export class SiegeController {
   private beginRound(): void {
     this.round++;
     this.phase = 'fighting';
-    this.modifier = !this.bossRound && this.round >= 3 && Math.random() < 0.45 ? MODIFIERS[Math.floor(Math.random() * MODIFIERS.length)] : null;
+    this.modifier = !this.bossRound && this.round >= 3 && this.rng() < 0.45 ? MODIFIERS[Math.floor(this.rng() * MODIFIERS.length)] : null;
+    this.roundT = 0;
+    this.hurtThisRound = 0;
+    this.eventFailed = false;
+    this.eventCount = 0;
+    this.holdT = 0;
+    this.eventZone = null;
+    this.event = !this.bossRound && this.round >= 2 && this.rng() < 0.45 ? EVENTS[Math.floor(this.rng() * EVENTS.length)] : null;
+    if (this.event === 'hold') {
+      const g = SIEGE_SPAWNS[Math.floor(this.rng() * SIEGE_SPAWNS.length)];
+      // a spot between the arena centre and a gate
+      const c = this.L.data.width / 2;
+      this.eventZone = new Vector3(((g[0] + c) / 2) * CELL, 0, ((g[1] + this.L.data.height / 2) / 2) * CELL);
+      this.eventZone.y = this.L.world.groundAt(this.eventZone.x, this.eventZone.z, 0.3, 10, 20);
+    }
+    this.eventGoal = { executions: 3, airKills: 4, noDamage: 25, speed: 45 + this.round * 3, hold: 15, bladeKills: 5 }[this.event ?? 'executions'];
+    if (this.round >= 10) progress.unlock('siege10');
+    if (this.round >= 20) progress.unlock('siege20');
     this.queue = this.compose();
     this.waveSize = this.queue.length;
     this.spawned = 0;
@@ -137,7 +175,8 @@ export class SiegeController {
       L.hooks.voice('vs_hound');
       L.sound('pinky_charge', null, { pitch: 0.5, volume: 1.2 });
     } else {
-      L.ui.hud.banner(t('siege.round', { n: this.round }), this.modifier ? t('siege.mod.' + this.modifier) : '');
+      const sub = [this.modifier ? t('siege.mod.' + this.modifier) : '', this.event ? t('event.' + this.event, { n: this.eventGoal }) : ''].filter(Boolean).join('  ·  ');
+      L.ui.hud.banner(t('siege.round', { n: this.round }), sub);
       L.sound('teleport', null, { pitch: 0.6, volume: 0.9 });
     }
   }
@@ -145,6 +184,7 @@ export class SiegeController {
   private compose(): EnemyKind[] {
     if (this.sorcererRound) return ['sorcerer', 'boltgunner', 'hellflamer'];
     if (this.bossRound) return Array.from({ length: this.round / 5 }, () => 'warhound' as EnemyKind);
+    const random = this.rng;
     let budget = 5 + this.round * 3;
     const out: EnemyKind[] = [];
     const avail = POOL.filter((p) => p.from <= this.round);
@@ -152,7 +192,7 @@ export class SiegeController {
       const fits = avail.filter((p) => p.cost <= budget);
       if (!fits.length) break;
       const total = fits.reduce((s, p) => s + p.weight, 0);
-      let r = Math.random() * total;
+      let r = random() * total;
       const pick = fits.find((p) => (r -= p.weight) < 0) ?? fits[0];
       out.push(pick.kind);
       budget -= pick.cost;
@@ -165,12 +205,39 @@ export class SiegeController {
     return this.queue.length + this.L.enemies.filter((e) => e.alive).length;
   }
 
-  onKill(e: Enemy, styleMul: number): void {
+  onKill(e: Enemy, styleMul: number, tags: string[] = [], kind = ''): void {
+    if (this.phase === 'fighting' && this.event && !this.eventFailed) {
+      if ((this.event === 'executions' && tags.includes('glory')) || (this.event === 'airKills' && tags.includes('air')) || (this.event === 'bladeKills' && kind === 'saw')) this.eventCount++;
+    }
     const base = e.kind === 'warhound' ? 150 : 10;
     const mod = this.modifier ? MOD_BONUS[this.modifier] : 1;
     const gain = Math.round(base * styleMul * mod);
     this.souls += gain;
     this.score += gain * this.round;
+  }
+
+  /** Player took damage (round events). */
+  onPlayerHurt(amount: number): void {
+    this.hurtThisRound += amount;
+    if (this.event === 'noDamage' && this.hurtThisRound > this.eventGoal) this.eventFailed = true;
+  }
+
+  /** HUD text for the round's side objective. */
+  private eventStatus(): string {
+    if (!this.event) return '';
+    if (this.eventFailed) return t('event.failed');
+    const e = this.event;
+    const prog = e === 'noDamage' ? `${Math.round(this.hurtThisRound)}/${this.eventGoal}` : e === 'speed' ? `${Math.max(0, Math.ceil(this.eventGoal - this.roundT))}s` : e === 'hold' ? `${Math.floor(this.holdT)}/${this.eventGoal}s` : `${this.eventCount}/${this.eventGoal}`;
+    return `${t('event.' + e, { n: this.eventGoal })} [${prog}]`;
+  }
+
+  private get eventMet(): boolean {
+    if (!this.event || this.eventFailed) return false;
+    const e = this.event;
+    if (e === 'noDamage') return this.hurtThisRound <= this.eventGoal;
+    if (e === 'speed') return this.roundT <= this.eventGoal;
+    if (e === 'hold') return this.holdT >= this.eventGoal;
+    return this.eventCount >= this.eventGoal;
   }
 
   /** Player damage scaling under the active modifier. */
@@ -188,7 +255,7 @@ export class SiegeController {
   update(dt: number, wdt: number): void {
     const L = this.L;
     const hud = L.ui.hud;
-    hud.setScore(`${t('siege.souls')} ${this.souls}  ·  ${t('siege.score')} ${this.score}${this.modifier ? '  ·  ' + t('siege.mod.' + this.modifier) : ''}`);
+    hud.setScore(`${this.daily ? t('daily.tag') + '  ·  ' : ''}${t('siege.souls')} ${this.souls}  ·  ${t('siege.score')} ${this.score}${this.modifier ? '  ·  ' + t('siege.mod.' + this.modifier) : ''}`);
     if (L.player.dead) return;
     if (this.phase === 'intermission') {
       this.timer -= dt;
@@ -202,6 +269,13 @@ export class SiegeController {
       return;
     }
     L.audio.music.setIntensity('combat');
+    this.roundT += dt;
+    if (this.event === 'speed' && this.roundT > this.eventGoal) this.eventFailed = true;
+    if (this.eventZone && !this.eventFailed) {
+      const p = L.player.pos;
+      if (Math.hypot(p.x - this.eventZone.x, p.z - this.eventZone.z) < 3.5) this.holdT += dt;
+      if (this.holdT >= this.eventGoal) this.eventZone = null;
+    }
     // release monsters from the gates, a few at a time
     const frenzy = this.modifier === 'frenzy';
     const maxAlive = this.bossRound ? 99 : Math.min(5 + this.round, 14) + (frenzy ? 6 : 0);
@@ -216,7 +290,8 @@ export class SiegeController {
       this.spawnT = this.bossRound ? 2.5 : Math.max(0.35, 1.1 - this.round * 0.04) * (frenzy ? 0.5 : 1);
     }
     const left = this.remaining;
-    hud.objective(t('siege.status', { n: this.round, left }));
+    const ev = this.eventStatus();
+    hud.objective(t('siege.status', { n: this.round, left }) + (ev ? '  ·  ' + ev : ''));
     if (!this.queue.length && left === 0 && this.spawned >= this.waveSize) this.endRound();
   }
 
@@ -226,7 +301,7 @@ export class SiegeController {
     const scored = SIEGE_SPAWNS.map((g) => ({ g, d: Math.hypot(g[0] * CELL - p.x, g[1] * CELL - p.z) }))
       .sort((a, b) => b.d - a.d)
       .slice(0, 6);
-    return scored[Math.floor(Math.random() * scored.length)].g;
+    return scored[Math.floor(this.rng() * scored.length)].g;
   }
 
   private endRound(): void {
@@ -236,12 +311,27 @@ export class SiegeController {
     if (this.modifier === 'darkness') L.lights.fogRange = [14, 70];
     const bonus = this.round * 15;
     this.souls += bonus;
+    let evLine = '';
+    if (this.event) {
+      if (this.eventMet) {
+        const prize = 120 + this.round * 10;
+        this.souls += prize;
+        evLine = t('event.done', { n: prize });
+        L.sound('secret_found', null, { volume: 0.8 });
+      } else evLine = t('event.failed');
+    }
+    this.event = null;
+    this.eventZone = null;
+    if (this.daily) {
+      progress.setDailyBest(todayKey(), this.round);
+      progress.bump('dailyRounds');
+    }
     this.modifier = null;
     const p = L.player;
     p.health = Math.min(p.maxHealth, p.health + (this.bossRound ? 50 : 15));
     if (this.bossRound) p.armor = Math.min(PLAYER.maxArmor, p.armor + 50);
     L.refreshPickups();
-    L.ui.hud.banner(t('siege.cleared', { n: this.round }), this.sorcererRound ? t('siege.sorcererDown') : this.bossRound ? t('siege.houndDown') : t('siege.bonus', { n: bonus }));
+    L.ui.hud.banner(t('siege.cleared', { n: this.round }), this.sorcererRound ? t('siege.sorcererDown') : this.bossRound ? t('siege.houndDown') : t('siege.bonus', { n: bonus }) + (evLine ? '  ·  ' + evLine : ''));
     if (this.sorcererRound) L.hooks.voice('s_death');
     // every fifth round: pick an ability again
     if (this.round % 5 === 0) window.setTimeout(() => L.hooks.chooseAbility([]), 1600);
@@ -269,6 +359,7 @@ export class SiegeController {
       { id: 'armor', name: t('shop.armor'), desc: t('shop.armor.d'), cost: 60 },
       { id: 'ammo', name: t('shop.ammo'), desc: t('shop.ammo.d'), cost: 70 },
       { id: 'grenades', name: t('shop.grenades'), desc: t('shop.grenades.d'), cost: 50 },
+      ...WEAPON_SLOTS.map((w) => ({ id: 'mod:' + w, name: t('mod.' + w), desc: t('mod.' + w + '.d'), cost: 220, maxed: this.L.player.mods.has(w) })),
     ];
   }
 
@@ -297,6 +388,8 @@ export class SiegeController {
       case 'grenades':
         p.ammo.grenades = AMMO_MAX.grenades;
         break;
+      default:
+        if (id.startsWith('mod:')) p.mods.add(id.slice(4) as WeaponId);
     }
     this.applyUpgrades();
     L.sound('pickup_weapon', null, { volume: 0.8 });

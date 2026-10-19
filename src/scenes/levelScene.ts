@@ -51,9 +51,13 @@ import { Grenades } from '../entities/grenade';
 import { Rockets, type RocketOpts } from '../entities/rocket';
 import { Barrel, type Prop } from '../entities/barrel';
 import { WeaponSystem } from '../weapons/weaponSystem';
+import { Bulwark, Harrier } from '../entities/lateWar';
+import { Archon } from '../entities/archon';
 import type { UIManager } from '../ui/uiManager';
 import type { LevelStats } from '../ui/levelComplete';
 import type { DamageKind, GameCtx, HitOpts } from './context';
+import { progress } from '../core/progress';
+import { keyLabel } from '../core/settingsStore';
 
 export interface LevelHooks {
   onDeath(): void;
@@ -84,6 +88,9 @@ function makeEnemy(kind: EnemyKind, x: number, z: number, angle: number, hpMul: 
     case 'hellflamer': return new Hellflamer(x, z, angle, hpMul);
     case 'terminator': return new SoulTerminator(x, z, angle, hpMul);
     case 'sorcerer': return new Sorcerer(x, z, angle, hpMul);
+    case 'harrier': return new Harrier(x, z, angle, hpMul);
+    case 'bulwark': return new Bulwark(x, z, angle, hpMul);
+    case 'archon': return new Archon(x, z, angle, hpMul);
   }
 }
 
@@ -149,10 +156,14 @@ export class LevelScene implements GameCtx {
   boss: Enemy | null = null;
   siege: SiegeController | null = null;
   readonly style = new StyleMeter();
+  readonly stats = progress;
   private gloryPending = false;
   private dashFov = 0;
   private combatHold = 0;
   private bossShown = false;
+  /** Damage taken since the boss fight began (Untouchable). */
+  private hurtSinceBoss = 1;
+  private nonBladeKills = 0;
   private hazards: { pos: Vector3; t: number; delay: number; radius: number; damage: number }[] = [];
   started = false;
 
@@ -248,6 +259,16 @@ export class LevelScene implements GameCtx {
         if (lava) this.particles.emit('fire', this.player.pos.add(new Vector3(0, 0.2, 0)), new Vector3(0, 1, 0), 8, 0.6);
       },
       onJump: () => {},
+      onWallJump: () => {
+        this.sound('step_metal', null, { pitch: 1.3, volume: 1.2 });
+        this.particles.emit('dust', this.player.pos.add(new Vector3(0, 1, 0)), new Vector3(0, 1, 0), 8, 0.5);
+        this.stats.bump('wallJumps');
+      },
+      onSlamStart: () => {
+        this.sound('pinky_charge', null, { pitch: 1.6, volume: 0.9 });
+        this.ui.hud.flash('gold', 0.2);
+      },
+      onSlam: (impact) => this.groundSlam(impact),
       onParry: () => {
         this.sound('chainsword_swing', null, { pitch: 1.4, volume: 0.7 });
         this.ui.viewModel.parry();
@@ -259,7 +280,7 @@ export class LevelScene implements GameCtx {
       },
     });
 
-    const skill = this.difficulty === 'easy' ? 'e' : this.difficulty === 'normal' ? 'n' : 'h';
+    const skill = this.difficulty === 'easy' ? 'e' : this.difficulty === 'normal' || this.difficulty === 'turbo' ? 'n' : 'h';
     this.data.things.forEach((th, index) => {
       if (th.skill && !th.skill.includes(skill)) return;
       const x = th.x * CELL, z = th.y * CELL;
@@ -311,11 +332,12 @@ export class LevelScene implements GameCtx {
     e.ambush = !!th.ambush;
     e.wave = th.wave;
     e.teleport = !!th.teleport;
-    e.pos.y = this.world.groundAt(x, z, e.radius, 10, 20);
+    e.pos.y = this.world.groundAt(x, z, e.radius, 10, 20) + (th.frozen ? 0 : e.hover);
     e.spawn.y = e.pos.y;
     if (th.wave && !th.awake) e.setState('dormant');
     if (th.frozen) e.frozen = true;
     if (e instanceof Sovereign) e.onPhase2 = () => this.hooks.voice('v5_phase');
+    if (e instanceof Archon) e.onPhase = (ph) => this.ui.hud.banner(t('boss.archon'), t('archon.phase' + ph));
     this.enemies.push(e);
   }
 
@@ -344,7 +366,7 @@ export class LevelScene implements GameCtx {
       pz = z + Math.cos(a) * (2 + tries * 0.6);
     }
     const e = makeEnemy(kind, px, pz, 0, opts.hpMul ?? this.diff.enemyHealth);
-    e.pos.y = this.world.groundAt(px, pz, e.radius, 10, 20);
+    e.pos.y = this.world.groundAt(px, pz, e.radius, 10, 20) + e.hover;
     e.spawn.y = e.pos.y;
     e.setState('alert');
     e.lastSeen = this.player.pos.clone();
@@ -359,6 +381,7 @@ export class LevelScene implements GameCtx {
 
   private parrySuccess(src: Enemy | null, from: Vector3): void {
     const p = this.player;
+    this.stats.bump('parries');
     p.parryT = 0;
     p.parryCD = 0;
     p.invulnT = Math.max(p.invulnT, 0.35);
@@ -461,6 +484,7 @@ export class LevelScene implements GameCtx {
     this.shake.add(0.6);
     this.ui.hud.flash('gold', 0.25);
     this.gloryPending = true;
+    this.stats.bump('executions');
     this.ability.onExecute();
     this.damageEnemy(e, e.hp + 9999, dir, 'saw', e.eye);
     this.gloryPending = false;
@@ -601,6 +625,50 @@ export class LevelScene implements GameCtx {
   /** Extra filter hook (abilities): return true to absorb a hit. */
   hitFilter: ((amount: number, from: Vector3, kind: DamageKind, opts: HitOpts) => boolean) | null = null;
   playerHidden = false;
+  piercingShot = false;
+  private pools: { pos: Vector3; r: number; t: number; tick: number }[] = [];
+
+  hasMod(id: WeaponId): boolean {
+    return this.player.mods.has(id);
+  }
+
+  ignite(e: Enemy, t: number, dps: number): void {
+    if (!e.alive) return;
+    e.burnT = Math.max(e.burnT, t);
+    e.burnDps = Math.max(e.burnDps, dps);
+  }
+
+  firePool(pos: Vector3, radius: number, t: number): void {
+    const p = pos.clone();
+    p.y = this.world.groundAt(p.x, p.z, 0.3, p.y + 1, 20);
+    this.pools.push({ pos: p, r: radius, t, tick: 0 });
+  }
+
+  /** Burning monsters and napalm pools. */
+  private updateBurning(dt: number): void {
+    for (let i = this.pools.length - 1; i >= 0; i--) {
+      const pl = this.pools[i];
+      pl.t -= dt;
+      pl.tick -= dt;
+      if (Math.random() < dt * 40) this.particles.emit('fire', pl.pos.add(new Vector3((Math.random() - 0.5) * pl.r * 1.6, 0.1, (Math.random() - 0.5) * pl.r * 1.6)), new Vector3(0, 1, 0), 1, 0.3, 0.8);
+      if (pl.tick <= 0) {
+        pl.tick = 0.3;
+        for (const e of this.enemies) if (e.alive && Math.hypot(e.pos.x - pl.pos.x, e.pos.z - pl.pos.z) < pl.r + e.radius && e.pos.y < pl.pos.y + 1.5) this.ignite(e, 2, 16);
+      }
+      if (pl.t <= 0) this.pools.splice(i, 1);
+    }
+    for (const e of this.enemies) {
+      if (e.burnT <= 0) continue;
+      if (!e.alive) {
+        e.burnT = 0;
+        continue;
+      }
+      e.burnT -= dt;
+      if (Math.random() < dt * 14) this.particles.emit('fire', e.pos.add(new Vector3((Math.random() - 0.5) * e.radius, e.height * Math.random(), (Math.random() - 0.5) * e.radius)), new Vector3(0, 1, 0), 1, 0.2, 0.7);
+      const before = Math.floor((e.burnT + dt) * 4), after = Math.floor(e.burnT * 4);
+      if (before !== after) this.damageEnemy(e, e.burnDps * 0.25, new Vector3(0, 1, 0), 'flame', e.eye);
+    }
+  }
 
   damagePlayer(amount: number, from: Vector3, kind: DamageKind, opts: HitOpts = {}): void {
     const p = this.player;
@@ -625,6 +693,8 @@ export class LevelScene implements GameCtx {
     amount = Math.round(amount * (this.siege?.playerDamageMul() ?? 1));
     if (amount <= 0) return;
     this.style.hurt(amount);
+    this.hurtSinceBoss += amount;
+    this.siege?.onPlayerHurt(amount);
     if (opts.piercing) {
       // armor-piercing hell-flame: shreds armor twice as fast and still burns flesh
       const had = p.armor > 0;
@@ -684,7 +754,7 @@ export class LevelScene implements GameCtx {
         this.style.kill(kind === 'blast' ? 'explosive' : this.weapons.current, tags);
         while (this.style.feed.length) this.ui.hud.styleBonus(t(this.style.feed.shift()!));
         if (this.style.rankIndex > before && this.style.rankIndex >= 3) this.sound('pickup_key', null, { pitch: 0.7 + this.style.rankIndex * 0.08, volume: 0.6 });
-        this.siege?.onKill(e, this.style.rank.mul);
+        this.siege?.onKill(e, this.style.rank.mul, tags, kind);
       }
       if (this.siege && Math.random() < 0.22) {
         const drops: PickupKind[] = ['shells', 'rounds', 'bulletClip', 'healthSmall', 'grenades', 'healthSmall'];
@@ -694,6 +764,10 @@ export class LevelScene implements GameCtx {
         const drops: PickupKind[] = ['shells', 'rounds', 'bulletClip', 'healthSmall', 'grenades', 'shells', 'rounds'];
         this.spawnDrop(drops[Math.floor(Math.random() * drops.length)], e.pos);
       }
+      if (!this.sandbox) {
+        if (e.def.bossName) this.killCam = 1.3;
+        else if (this.enemies.length > 2 && !this.enemies.some((o) => o.alive || o.state === 'dormant') && (!this.siege || this.siege.remaining === 0)) this.killCam = 0.7;
+      }
       if (e.def.bossName) {
         this.shake.add(1);
         this.lights.addFx(e.eye, new Color3(1, 0.5, 0.2), 6, 22, 1.2);
@@ -702,8 +776,21 @@ export class LevelScene implements GameCtx {
         // the boss's minions collapse with it
         for (const m of this.summoned) if (m.alive) this.damageEnemy(m, 9999, new Vector3(0, 1, 0), 'blast');
       }
-      const playerCaused = kind === 'bullet' || kind === 'pellet' || kind === 'saw' || kind === 'blast';
-      if (playerCaused) this.playerHit({ kill: true });
+      const playerCaused = kind === 'bullet' || kind === 'pellet' || kind === 'saw' || kind === 'blast' || kind === 'flame';
+      if (playerCaused) {
+        this.playerHit({ kill: true });
+        if (!this.sandbox) {
+          this.stats.bump('kills');
+          if (!this.player.onGround) this.stats.bump('airKills');
+          if (kind === 'saw') this.stats.bump('chainswordKills');
+          else this.nonBladeKills++;
+        }
+      }
+      if (e.def.bossName && !this.sandbox) {
+        this.stats.bump('bossKills');
+        if (this.hurtSinceBoss === 0) this.stats.unlock('untouchable');
+        if (e.kind === 'sorcerer') this.stats.unlock('sorcererSlain');
+      }
       if (e.kind === 'zombieman') this.spawnDrop('bulletClip', e.pos);
       if (e.kind === 'boltgunner') this.spawnDrop(this.player.weapons.has('bolter') ? 'bolts' : 'bolter', e.pos);
       if (e.kind === 'hellflamer') this.spawnDrop(this.player.weapons.has('flamer') ? 'fuel' : 'flamer', e.pos);
@@ -717,6 +804,39 @@ export class LevelScene implements GameCtx {
         setTimeout(() => this.decals.add('pool', p, new Vector3(0, 1, 0), e.kind === 'pinky' ? 2.0 : 1.4, this.lightAt(p.x, p.z)), 500);
       }
     } else if (kind === 'bullet' || kind === 'pellet' || kind === 'saw') this.playerHit({ kill: false });
+  }
+
+  /** Rocket-jump slam: crashing down from height shatters everything around the impact. */
+  private groundSlam(impact: number): void {
+    const p = this.player;
+    const radius = 7;
+    const damage = 140 + Math.min(120, impact * 3);
+    const c = p.pos.add(new Vector3(0, 0.3, 0));
+    this.sound('barrel_explode', null, { pitch: 0.65, volume: 1.4 });
+    this.sound('impact_metal', null, { pitch: 0.5, volume: 1.2 });
+    this.shake.add(0.85);
+    this.ui.hud.flash('gold', 0.35);
+    this.particles.emit('dust', c, new Vector3(0, 1, 0), 40, 2.5);
+    this.particles.emit('fire', c, new Vector3(0, 1, 0), 36, 2.2, 1.2);
+    this.particles.emit('sparks', c, new Vector3(0, 1, 0), 24, 2);
+    this.lights.addFx(c.add(new Vector3(0, 1, 0)), new Color3(1, 0.6, 0.25), 5, 16, 0.4);
+    let hits = 0;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      const dx = e.pos.x - p.pos.x, dz = e.pos.z - p.pos.z;
+      const d = Math.hypot(dx, dz) - e.radius;
+      if (d > radius || Math.abs(e.pos.y - p.pos.y) > 2.5) continue;
+      if (!this.world.los(p.eye, e.eye)) continue;
+      const k = Math.max(0.35, 1 - d / radius);
+      this.damageEnemy(e, damage * k, new Vector3(dx, 0, dz), 'blast', e.eye);
+      if (e.alive) {
+        e.knock.addInPlace(new Vector3(dx, 0, dz).normalize().scale(10 * k * (e.def.mass ?? 1)));
+        if (!e.def.bossName) e.staggerT = Math.max(e.staggerT, 0.6);
+      } else hits++;
+    }
+    for (const b of this.barrels) if (!b.exploded && Vector3.Distance(b.pos, p.pos) < radius) b.damage(999, true);
+    if (hits) this.stats.bump('slamKills', hits);
+    this.noise(p.pos, 30);
   }
 
   private gibBurst(e: Enemy): void {
@@ -739,10 +859,22 @@ export class LevelScene implements GameCtx {
     const p = this.player;
     const dp = Vector3.Distance(center, p.pos.add(new Vector3(0, 0.9, 0)));
     if (dp < radius + p.radius && this.world.los(center, p.eye)) {
-      this.damagePlayer(damage * 0.6 * Math.max(0.1, 1 - dp / (radius + p.radius)), center, 'blast');
+      const k = 1 - dp / (radius + p.radius);
+      const own = source instanceof Rockets || source instanceof Grenades;
+      this.damagePlayer(damage * (own ? 0.12 : 0.6) * Math.max(0.1, k), center, 'blast');
       const push = p.pos.subtract(center);
       push.y = 0;
-      p.vel.addInPlace(push.normalize().scale(6 * (1 - dp / (radius + p.radius))));
+      if (push.lengthSquared() > 1e-4) p.vel.addInPlace(push.normalize().scale((own ? 9 : 6) * k));
+      if (own && !p.dead) {
+        // rocket jump: blasts under your feet throw you skyward; crouch mid-air to slam back down
+        const under = Math.max(0, 1 - Math.max(0, center.y - p.pos.y + 0.3) / 2.5);
+        const up = 15 * k * (0.5 + 0.5 * under);
+        if (up > 3) {
+          p.vel.y = Math.max(p.vel.y, 0) + up;
+          p.onGround = false;
+          if (up > 6) p.slamArmed = true;
+        }
+      }
     }
     for (const b of this.barrels) {
       if (b === source || b.exploded) continue;
@@ -793,6 +925,14 @@ export class LevelScene implements GameCtx {
     const p = this.player;
     const eye = p.eye;
     const f = this.aimDir();
+    if (this.weapons.current === 'sniper' && this.hasMod('sniper') && def.pellets === 1) {
+      // penetrator rounds: one line through every monster in it, wall to wall
+      this.piercingShot = true;
+      this.pierceLine(rand(def.damageMin, def.damageMax), false);
+      this.piercingShot = false;
+      return;
+    }
+    const incendiary = def.pellets > 1 && this.weapons.current === 'shotgun' && this.hasMod('shotgun');
     const right = new Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw));
     const up = Vector3.Cross(f, right).normalize();
     const acc = new Map<Enemy, { dmg: number; pos: Vector3 }>();
@@ -804,7 +944,9 @@ export class LevelScene implements GameCtx {
       if (h.kind === 'entity') {
         const e = h.entity as Enemy;
         const cur = acc.get(e) ?? { dmg: 0, pos: h.point };
-        cur.dmg += rand(def.damageMin, def.damageMax);
+        const head = def.pellets === 1 && h.point.y > e.pos.y + e.height * 0.8 && !e.def.bossName;
+        cur.dmg += rand(def.damageMin, def.damageMax) * (head ? 1.4 : 1);
+        if (head) this.particles.emit('gore', h.point, d.scale(-1).add(new Vector3(0, 1, 0)), 10, 0.7);
         acc.set(e, cur);
         this.particles.emit('blood', h.point, d.scale(-1).add(new Vector3(0, 0.5, 0)), 5, 0.5);
         continue;
@@ -814,6 +956,7 @@ export class LevelScene implements GameCtx {
     }
     for (const [e, v] of acc) {
       this.damageEnemy(e, v.dmg, e.pos.subtract(p.pos), def.pellets > 1 ? 'pellet' : 'bullet', v.pos);
+      if (incendiary) this.ignite(e, 3, 14);
       this.sound('flesh_hit', v.pos, { volume: 0.8 });
       // wall splatter behind the target
       const behind = this.world.raycast(v.pos, f, 3);
@@ -930,9 +1073,26 @@ export class LevelScene implements GameCtx {
   }
 
   playerBeam(damage: number): void {
+    const hits = this.pierceLine(damage, true);
+    if (this.hasMod('bolter')) {
+      // chain lightning: each monster hit arcs to the nearest others
+      for (const h of hits) {
+        const near = this.enemies.filter((o) => o.alive && !hits.includes(o) && Vector3.Distance(o.pos, h.pos) < 8).sort((a, b) => Vector3.Distance(a.pos, h.pos) - Vector3.Distance(b.pos, h.pos)).slice(0, 2);
+        for (const o of near) {
+          this.damageEnemy(o, damage * 0.5, o.pos.subtract(h.pos), 'bullet', o.eye);
+          this.particles.emit('sparks', o.eye, new Vector3(0, 1, 0), 12, 1);
+          this.lights.addFx(o.eye, new Color3(0.5, 0.7, 1), 2, 6, 0.2);
+        }
+      }
+    }
+  }
+
+  /** Damages every monster along the aim line up to the first wall; returns the ones hit. */
+  private pierceLine(damage: number, beam: boolean): Enemy[] {
     const p = this.player;
     const eye = p.eye;
     const f = this.aimDir();
+    const hits: Enemy[] = [];
     const wall = this.world.raycast(eye, f, 150);
     const maxT = wall.kind === 'none' ? 150 : Vector3.Distance(eye, wall.point);
     for (const e of this.enemies) {
@@ -940,8 +1100,13 @@ export class LevelScene implements GameCtx {
       const tt = rayCylinder(eye, f, e.pos.x, e.pos.z, e.radius * 1.15, e.pos.y, e.pos.y + e.height, maxT);
       if (tt === null) continue;
       const at = eye.add(f.scale(tt));
+      hits.push(e);
       this.damageEnemy(e, damage, f, 'bullet', at);
       this.particles.emit('gore', at, f.scale(-1).add(new Vector3(0, 0.6, 0)), 14, 0.8);
+    }
+    if (!beam) {
+      if (wall.kind !== 'none') this.impact(wall, f, true);
+      return hits;
     }
     if (wall.collider?.owner instanceof Barrel) wall.collider.owner.damage(damage, false);
     if (wall.kind !== 'none') {
@@ -952,6 +1117,7 @@ export class LevelScene implements GameCtx {
     const from = eye.add(f.scale(0.9)).add(right.scale(0.15)).add(new Vector3(0, -0.22, 0));
     this.playerBeamFx = { from, to: eye.add(f.scale(maxT)), t: 0.3 };
     this.lights.addFx(eye.add(f.scale(Math.min(6, maxT * 0.5))), new Color3(0.4, 0.6, 1), 4, 14, 0.25);
+    return hits;
   }
 
   muzzleFlash(big: boolean): void {
@@ -1144,6 +1310,12 @@ export class LevelScene implements GameCtx {
     if (this.completed) return;
     this.completed = true;
     if (this.data.completeVoice) this.hooks.voice(this.data.completeVoice);
+    if (this.data.chapter > 0) {
+      if (this.kills > 0 && this.nonBladeKills === 0) this.stats.unlock('bladeOnly');
+      if (this.elapsed < this.data.parTime) this.stats.unlock('underPar');
+      if (this.difficulty === 'ultra') this.stats.unlock('ultra');
+      if (this.data.next === null) this.stats.unlock('campaign');
+    }
     this.sound('level_complete');
     this.hooks.onComplete({
       kills: this.kills, totalKills: this.totalKills, items: this.items, totalItems: this.totalItems,
@@ -1193,8 +1365,15 @@ export class LevelScene implements GameCtx {
     }
   }
 
+  /** Real seconds of kill-cam slow motion left. */
+  private killCam = 0;
+
   update(dt: number, input: Input): void {
     if (!this.started) return;
+    if (this.killCam > 0) {
+      this.killCam -= dt;
+      dt *= 0.3;
+    }
     this.elapsed += dt;
     this.hurtSoundT -= dt;
     const p = this.player;
@@ -1228,8 +1407,8 @@ export class LevelScene implements GameCtx {
     this.camera.fov = this.baseFov * (1 - 0.72 * this.zoom);
     this.ui.hud.setScope(this.zoom > 0.6);
     if (this.zoom > 0.3) {
-      input.mouseDX *= 0.35;
-      input.mouseDY *= 0.35;
+      input.mouseDX *= s.scopeSens ?? 0.35;
+      input.mouseDY *= s.scopeSens ?? 0.35;
     }
 
     p.update(dt, input, s);
@@ -1264,6 +1443,7 @@ export class LevelScene implements GameCtx {
     this.checkWaves();
     this.updateBoss();
     this.updateHazards(wdt);
+    this.updateBurning(wdt);
     this.updateMusic(dt);
     this.siege?.update(dt, wdt);
     for (const tf of this.telefogs) tf.t += wdt;
@@ -1281,9 +1461,9 @@ export class LevelScene implements GameCtx {
     if (this.data.id === 'battle' && !p.dead && input.pressed('shop')) this.hooks.openBattleMenu();
     this.gunStrikeT -= dt;
     if (this.gunStrikeT <= 0) this.gunStrikeTarget = null;
-    this.ui.hud.prompt(this.ability.slamReady ? t('jump.prompt') : this.gunStrikeTarget ? t('gunstrike.prompt') : this.gloryTarget() ? t('glory.prompt') : this.parryWarning() ? t('parry.prompt') : null);
+    this.ui.hud.prompt(this.ability.slamReady ? t('jump.prompt') : p.slamArmed && !p.onGround && !p.slamming ? t('slam.prompt', { key: keyLabel(s.bindings.crouch) }) : this.gunStrikeTarget ? t('gunstrike.prompt') : this.gloryTarget() ? t('glory.prompt') : this.parryWarning() ? t('parry.prompt') : null);
     this.dashFov = Math.max(0, this.dashFov - dt * 5);
-    this.camera.fov = this.baseFov * (1 - 0.72 * this.zoom) * (1 + 0.08 * this.dashFov);
+    this.camera.fov = this.baseFov * (1 - 0.72 * this.zoom) * (1 + 0.08 * this.dashFov) * (this.killCam > 0 ? 0.88 : 1);
 
     // camera
     const eye = p.eye;
@@ -1401,6 +1581,8 @@ export class LevelScene implements GameCtx {
     for (const s of this.data.secrets) {
       if (this.secrets.has(s.id) || !g.inRect(s.rect, cx, cy)) continue;
       this.secrets.add(s.id);
+      this.stats.bump('secrets');
+      if (this.secrets.size === this.data.secrets.length) this.stats.unlock('allSecrets');
       this.ui.hud.message(t('msg.secret'));
       this.ui.hud.flash('gold', 0.5);
       this.sound('secret_found');
@@ -1412,6 +1594,7 @@ export class LevelScene implements GameCtx {
     if (this.siege) this.boss = this.enemies.find((e) => e.def.bossName && (e.alive || e.deathT < 1.5)) ?? null;
     const b = this.boss;
     const show = !!b && b.state !== 'dormant' && b.state !== 'idle' && (b.alive || b.deathT < 1.5);
+    if (show && !this.bossShown) this.hurtSinceBoss = 0;
     if (show && b) this.ui.hud.setBoss(b.def.bossName!, b.hp / b.maxHp);
     else if (this.bossShown) this.ui.hud.setBoss(null, 0);
     this.bossShown = show;
@@ -1458,7 +1641,7 @@ export class LevelScene implements GameCtx {
       if (e.painFlash > 0) l = [l[0] * 1.8 + 0.5, l[1] * 1.4 + 0.25, l[2] * 1.4 + 0.25];
       if (e.parryTell > 0 && e.alive) {
         const k = 0.6 + 0.4 * Math.sin(this.elapsed * 30);
-        l = [l[0] * 0.6 + 0.2, l[1] * 0.8 + 0.5 * k, l[2] + 1.2 * k];
+        l = [l[0] * 0.6 + 0.12, l[1] * 0.8 + 0.3 * k, l[2] * 0.9 + 0.75 * k];
       } else if (e.dangerTell > 0 && e.alive) {
         const k = 0.6 + 0.4 * Math.sin(this.elapsed * 30);
         l = [l[0] + 1.3 * k, l[1] * 0.5, l[2] * 0.5];
@@ -1467,7 +1650,8 @@ export class LevelScene implements GameCtx {
         l = [l[0] + 0.9 * k + 0.3, l[1] + 0.45 * k + 0.1, l[2] * 0.6];
       }
       let flip = false;
-      if (e.moving) flip = Math.sin(e.yaw) * right.x + Math.cos(e.yaw) * right.z < -0.2;
+      if (e.state === 'dying' || e.state === 'dead') flip = e.deathDir.x * right.x + e.deathDir.z * right.z < 0;
+      else if (e.moving) flip = Math.sin(e.yaw) * right.x + Math.cos(e.yaw) * right.z < -0.2;
       b.add(f, e.pos.x, e.pos.y, e.pos.z, l, { flip, depthBias: e.state === 'dead' ? 0.05 : 0.15 });
     }
     for (const k of this.pickups) {
@@ -1488,6 +1672,10 @@ export class LevelScene implements GameCtx {
       b.add(fr, tf.pos.x, tf.pos.y, tf.pos.z, [1, 1, 1], { depthBias: 0.4 });
     }
     for (const e of this.enemies) {
+      if (e instanceof Archon && e.alive && e.isBound) {
+        const k = Math.floor(this.elapsed * 8) % 2;
+        b.add(SPRITES['shield' + k], e.pos.x, e.pos.y + e.height * 0.5, e.pos.z, [1.5, 0.7, 0.3], { full: true, scale: 2.1, depthBias: 0.3 });
+      }
       if (!(e instanceof Sorcerer) || !e.alive) continue;
       if (e.shieldHp > 0 || e.isBound) {
         const k = Math.floor(this.elapsed * 8) % 2;
@@ -1504,6 +1692,8 @@ export class LevelScene implements GameCtx {
         }
       }
     }
+    const hz = this.siege?.eventZone;
+    if (hz) b.add(SPRITES['sigil' + (Math.floor(this.elapsed * 3) % 2)], hz.x, hz.y + 0.15, hz.z, [1, 1, 1], { full: true, scale: 7, depthBias: 0.3 });
     for (const h of this.hazards) {
       const k = Math.min(2, Math.floor((h.t / h.delay) * 3));
       b.add(SPRITES['erupt' + k], h.pos.x, h.pos.y + 0.25, h.pos.z, [1, 1, 1], { full: true, scale: h.radius * 0.9, depthBias: 0.3 });

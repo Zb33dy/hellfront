@@ -22,7 +22,7 @@ npm run build
 
 ## Controls
 
-WASD move · mouse look · LMB fire · RMB scope (rifle) · E use · 1–7 weapons · Z previous weapon · G frag grenade · Q equipped ability · C crouch · V or double-tap Shift dash · E executes staggered monsters · F parry (blue attacks) → E Gun Strike · Space jump · Shift sprint · B Siege shop · Esc pause · F3 debug overlay · F4 noclip.
+WASD move · mouse look · LMB fire · RMB alt fire (rifle scope, pistol burst, double shot, whirlwind, guiding laser, bolt beam, charged fire orb) · E use · 1–7 weapons · Z previous weapon · G frag grenade · Q equipped ability · C crouch · V or double-tap Shift dash · E executes staggered monsters · F parry (blue attacks) → E Gun Strike · Space jump · Shift sprint · B Siege shop · Esc pause · F3 debug overlay · F4 noclip.
 All bindings can be changed in Settings.
 
 ## Campaign
@@ -33,10 +33,12 @@ All bindings can be changed in Settings.
 | 2 | **The Foundry** | **Ironclad** — armor plating shrugs off bullets/pellets (×0.3) but the chainsword tears through it (×2.6). Boss: **The Warden** (fireball fans, ground slam, summons imps, enrages at half health). |
 | 3 | **The Breach** | **Executioner** — long, readable wind-ups: a glowing blade slam you can sidestep, and a charged fast hellbolt. Boss: **Breach Core** (immobile, summons defenders, shockwave when you get close). |
 | 4 | **The Ashen Gate** | **Wraith** — fast skirmisher that blinks sideways when hit or aimed at, throws bone-shard fans. |
-| 5 | **Throne of Ash** | Final boss: **The Sovereign** — hellbolt salvos, telegraphed ground eruptions, overhead slam, summons its court at 75/50/25%, faster second phase. |
+| 5 | **Throne of Ash** | Boss: **The Sovereign** — hellbolt salvos, telegraphed ground eruptions, overhead slam, summons its court at 75/50/25%, faster second phase. |
+| 6 | **The Heart** | **Harrier** (winged flyer, acid spit, parriable dive) and **Bulwark** (tower shield: flank it, blow it up or parry its bash). Final boss: **The Archon** — bolt fans, burning sigils, a blade you parry (blue) or jump (red), calls the host at 2/3 and 1/3 health, enraged leaping slams. |
 
 Chapters can be started from **CHAPTERS** in the main menu; finishing a chapter carries your weapons, ammo and health into the next one.
-Checkpoints save automatically (localStorage). Subtitles in English and Turkish.
+Checkpoints save automatically (localStorage). Subtitles in English and Turkish. Every chapter hides 2–3 secret closets (E on odd walls). Finishing a chapter offers one of three **weapon upgrades** (piercing rounds, dragon's breath, tempest whirlwind, penetrator, cluster warheads, chain lightning, napalm); in Siege they are sold in the Soul Market.
+Difficulties: Easy, Normal, Hellfront, **Ultra-Nightmare** (one life) and **Turbo** (everything 1.5× faster).
 
 ## Combat systems
 
@@ -49,11 +51,15 @@ Checkpoints save automatically (localStorage). Subtitles in English and Turkish.
 
 One ability is equipped per chapter (picked at the start; every 5 rounds in Siege). Finishing a chapter unlocks the next: **Focus** (slow time) → **Cloak** (monsters cannot see you or attack) → **Hook** (grapple to a monster, burst + stun around it; executions refill 25%) → **Aegis** (block ranged hits from the front; melee still hurts) → **Jump Pack** (leap, aim the yellow ring, slam down; executions refill 15%).
 
-Movement supports **bunny hopping**: hold jump and strafe while turning in the air.
+Movement supports **bunny hopping** (hold jump, strafe and turn in the air), **wall running / wall jumping** (up to three kicks per jump) and **rocket jumping**: a rocket at your feet throws you up; press crouch mid-air to **slam** down for heavy area damage. Boss deaths and the last kill of a fight play a short slow-motion kill-cam.
 
 ## Siege mode
 
-Endless rounds in a walled arena. Each round spends a growing budget on monsters that pour out of eight gates; their health grows every round, and supplies respawn between rounds. Every fifth round the **Warhound** — a two-headed hellhound that pounces, double-bites and breathes fire — hunts alone, one more each time. Kills earn souls (multiplied by your style rank) to spend in the **Soul Market** between rounds (B): permanent power, vitality, focus and speed upgrades plus refills. From round 3 a round may carry a modifier (swift, blade-only, darkness, armored, glass, frenzy) that pays extra souls. Your best round is saved. The lobby lets you start from any multiple of 5 you have reached — round 15 (the **Sorcerer**) is always available. The Sorcerer taunts you through the fight, raises **Heretic Marines** (Boltgunner, Hellflamer, Soul Terminator), fires an unblockable red-telegraphed beam and homing soul orbs, hides behind hell-shields only rockets or the rifle can crack, teleports away from melee pressure, and at low health resurrects the fallen heretics and becomes untouchable until they die again. Their bolters and flamers drop as weapons 6 and 7.
+Endless rounds in a walled arena. Each round spends a growing budget on monsters that pour out of eight gates; their health grows every round, and supplies respawn between rounds. Every fifth round the **Warhound** — a two-headed hellhound that pounces, double-bites and breathes fire — hunts alone, one more each time. Kills earn souls (multiplied by your style rank) to spend in the **Soul Market** between rounds (B): permanent power, vitality, focus and speed upgrades plus refills. From round 3 a round may carry a modifier (swift, blade-only, darkness, armored, glass, frenzy) that pays extra souls. Your best round is saved. The lobby lets you start from any multiple of 5 you have reached — round 15 (the **Sorcerer**) is always available. The Sorcerer taunts you through the fight, raises **Heretic Marines** (Boltgunner, Hellflamer, Soul Terminator), fires an unblockable red-telegraphed beam and homing soul orbs, hides behind hell-shields only rockets or the rifle can crack, teleports away from melee pressure, and at low health resurrects the fallen heretics and becomes untouchable until they die again. Their bolters and flamers drop as weapons 6 and 7. Rounds may also carry a side objective (executions, air kills, no damage, speed, hold the sigil ring, blade kills) for bonus souls. **Daily Siege** gives everyone the same seeded waves and modifiers for the day.
+
+## Achievements & cosmetics
+
+22 achievements (menu → ACHIEVEMENTS) track lifetime stats; several unlock **screen palettes** and **weapon finishes** (Settings → Game). Settings also include scope sensitivity, a live FOV preview, colour-blind assist (protan/deutan/tritan) and full key rebinding.
 
 ## Music
 

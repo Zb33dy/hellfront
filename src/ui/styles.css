@@ -310,6 +310,8 @@ html, body {
 }
 .tab.active { color: #fff0c8; background: #5a1e0c; box-shadow: 0 0 12px rgba(255,90,20,.35); }
 .settings-body { overflow-y: auto; padding-right: 10px; flex: 1; }
+.fov-row { justify-content: center; }
+.fov-preview { width: 220px; height: 70px; image-rendering: pixelated; border: 1px solid rgba(255, 176, 64, 0.35); background: rgba(0, 0, 0, 0.35); }
 .row {
   display: grid;
   grid-template-columns: 1fr 300px;
