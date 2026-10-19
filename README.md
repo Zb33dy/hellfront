@@ -20,6 +20,17 @@ npm run build
 
 `npm run build` runs `tsc --noEmit` and then `vite build` into `dist/`.
 
+## Desktop app (Windows)
+
+The same build runs as a standalone Electron app (electron/main.cjs serves dist/ over a private `app://` scheme, starts fullscreen; F11 or Alt+Enter toggles fullscreen).
+
+```bash
+npm run app        # build and run the desktop app
+npm run dist:win   # build release/HELLFRONT-Setup-<version>.exe and release/HELLFRONT-Portable-<version>.exe
+```
+
+The executables are unsigned, so Windows SmartScreen shows an "unknown publisher" prompt on first launch (More info → Run anyway).
+
 ## Controls
 
 WASD move · mouse look · LMB fire · RMB alt fire (rifle scope, pistol burst, double shot, whirlwind, guiding laser, bolt beam, charged fire orb) · E use · 1–7 weapons · Z previous weapon · G frag grenade · Q equipped ability · C crouch · V or double-tap Shift dash · E executes staggered monsters · F parry (blue attacks) → E Gun Strike · Space jump · Shift sprint · B Siege shop · Esc pause · F3 debug overlay · F4 noclip.
