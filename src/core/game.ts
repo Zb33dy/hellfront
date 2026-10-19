@@ -501,6 +501,7 @@ export class Game {
 
   private frame(): void {
     const dt = this.clock.tick(this.engine.getDeltaTime() / 1000);
+    if (this.state === 'playing' || this.state === 'menu') this.audio.keepAlive();
     switch (this.state) {
       case 'menu':
       case 'bootReady':

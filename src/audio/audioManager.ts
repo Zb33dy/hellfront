@@ -27,6 +27,16 @@ export interface SoundHandle {
 
 const NULL_HANDLE: SoundHandle = { stop() {}, setPosition() {}, setVolume() {}, setPitch() {}, playing: false };
 
+/** Voice budget: total one-shot sounds at once, and copies of the same sound. */
+const MAX_VOICES = 40;
+const MAX_SAME = 5;
+
+interface Voice {
+  id: SoundId;
+  positional: boolean;
+  steal(): void;
+}
+
 /**
  * Web Audio mixer: master → (sfx → duck) / voice / ui / amb / music.
  * SFX ducks under voice lines. Enemies and world sounds are 3D (HRTF panners).
@@ -105,6 +115,12 @@ export class AudioManager {
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) unlock();
+    });
+    this.ctx.addEventListener('statechange', () => {
+      if (this.ctx.state === 'suspended' && !document.hidden) window.setTimeout(unlock, 200);
+    });
   }
 
   setVolumes(master: number, sfx: number, voice: number): void {
@@ -197,8 +213,16 @@ export class AudioManager {
     if (this.ctx.state !== 'running' || !this.loaded) return NULL_HANDLE;
     const bufs = this.buffers.get(id);
     if (!bufs?.length) return NULL_HANDLE;
-    if (this.activeCount > 48 && !opts.loop) return NULL_HANDLE;
     const def: SoundDef = SOUNDS[id];
+    const looping = opts.loop ?? def.loop ?? false;
+    if (!looping) {
+      // voice budget: never drop a new sound — steal an old one instead. The same sound spamming
+      // (flame puffs, impacts) only ever holds a few slots; past the total budget the oldest
+      // positional sound goes first, so the player's own weapon always plays.
+      const same = this.voices.filter((v) => v.id === id);
+      if (same.length >= MAX_SAME) same[0].steal();
+      if (this.voices.length >= MAX_VOICES) (this.voices.find((v) => v.positional) ?? this.voices[0]).steal();
+    }
     // avoid repeating the same variant twice in a row
     let vi = Math.floor(Math.random() * bufs.length);
     if (bufs.length > 1 && vi === this.lastVariant.get(id)) vi = (vi + 1) % bufs.length;
@@ -207,7 +231,7 @@ export class AudioManager {
     const c = this.ctx;
     const src = c.createBufferSource();
     src.buffer = bufs[vi];
-    src.loop = opts.loop ?? def.loop ?? false;
+    src.loop = looping;
     const pj = def.pitchJitter ?? 0;
     src.playbackRate.value = (opts.pitch ?? 1) * (1 + (Math.random() * 2 - 1) * pj);
     const g = c.createGain();
@@ -226,7 +250,8 @@ export class AudioManager {
     }
     if (opts.pos) {
       panner = c.createPanner();
-      panner.panningModel = 'HRTF';
+      // HRTF is costly on the audio thread; past a handful of voices fall back to equal-power panning
+      panner.panningModel = this.activeCount < 18 ? 'HRTF' : 'equalpower';
       panner.distanceModel = 'inverse';
       panner.refDistance = opts.refDistance ?? def.refDistance ?? 3;
       panner.maxDistance = 80;
@@ -249,10 +274,32 @@ export class AudioManager {
       }
     };
     if (worldSound) this.worldSounds.add(stopNow);
+    let voice: Voice | null = null;
+    if (!looping) {
+      voice = {
+        id,
+        positional: !!opts.pos,
+        steal: () => {
+          // quick fade so a stolen sound does not click
+          const t = c.currentTime;
+          g.gain.cancelScheduledValues(t);
+          g.gain.setValueAtTime(g.gain.value, t);
+          g.gain.linearRampToValueAtTime(0, t + 0.03);
+          try {
+            src.stop(t + 0.04);
+          } catch {
+            /* already stopped */
+          }
+          this.dropVoice(voice!);
+        },
+      };
+      this.voices.push(voice);
+    }
     src.onended = () => {
       playing = false;
       this.activeCount--;
       this.worldSounds.delete(stopNow);
+      if (voice) this.dropVoice(voice);
       g.disconnect();
       panner?.disconnect();
     };
@@ -377,6 +424,24 @@ export class AudioManager {
     }
     this.narration = null;
   }
+
+  /** One-shot sounds still sounding, oldest first (the voice-stealing pool). */
+  private voices: Voice[] = [];
+
+  private dropVoice(v: Voice): void {
+    const i = this.voices.indexOf(v);
+    if (i >= 0) this.voices.splice(i, 1);
+  }
+
+  /** Browsers may suspend audio (device change, background tab): bring it back while playing. */
+  keepAlive(): void {
+    if (this.ctx.state !== 'running' && this.ctx.state !== 'closed' && performance.now() - this.lastResume > 1000) {
+      this.lastResume = performance.now();
+      void this.ctx.resume().catch(() => {});
+    }
+  }
+
+  private lastResume = 0;
 
   /** Every sfx/ambience source still playing (level teardown silences them all). */
   private worldSounds = new Set<() => void>();
