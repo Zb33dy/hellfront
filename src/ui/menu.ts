@@ -22,7 +22,6 @@ export interface MenuCallbacks {
 export function logo(): HTMLElement {
   const wrap = h('div');
   wrap.append(h('div', { class: 'logo', text: 'HELLFRONT', attrs: { 'data-text': 'HELLFRONT' } }));
-  wrap.append(h('div', { class: 'logo-sub', text: t('menu.subtitle') }));
   return wrap;
 }
 
@@ -69,7 +68,6 @@ export class MenuScreen {
     ];
     list.append(...items);
     left.append(list);
-    left.append(h('div', { class: 'menu-foot', html: 'v0.3 · WASD + MOUSE · ESC PAUSE<br>A GAME BY HUNK DE POITIERS · ORIGINAL ASSETS' }));
     this.el.append(left);
     this.mainNav = new MenuNav(items, s, null);
 
