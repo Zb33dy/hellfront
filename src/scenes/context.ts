@@ -49,4 +49,6 @@ export interface GameCtx {
   summon(kind: EnemyKind, x: number, z: number): Enemy | null;
   /** Adds velocity to the player (shockwaves). */
   pushPlayer(v: Vector3): void;
+  /** Telegraphed ground eruption: warning for `delay` seconds, then damages the player inside `radius`. */
+  hazard(pos: Vector3, delay: number, radius: number, damage: number): void;
 }

@@ -34,6 +34,8 @@ import { Ironclad } from '../entities/ironclad';
 import { Warden } from '../entities/warden';
 import { Executioner } from '../entities/executioner';
 import { BreachCore } from '../entities/breachCore';
+import { Wraith } from '../entities/wraith';
+import { Sovereign } from '../entities/sovereign';
 import type { PlayerState } from '../entities/player';
 import { Projectiles } from '../entities/projectile';
 import { Barrel, type Prop } from '../entities/barrel';
@@ -58,6 +60,8 @@ function makeEnemy(kind: EnemyKind, x: number, z: number, angle: number, hpMul: 
     case 'warden': return new Warden(x, z, angle, hpMul);
     case 'executioner': return new Executioner(x, z, angle, hpMul);
     case 'core': return new BreachCore(x, z, angle, hpMul);
+    case 'wraith': return new Wraith(x, z, angle, hpMul);
+    case 'sovereign': return new Sovereign(x, z, angle, hpMul);
   }
 }
 
@@ -107,6 +111,7 @@ export class LevelScene implements GameCtx {
   private summoned = new Set<Enemy>();
   private boss: Enemy | null = null;
   private bossShown = false;
+  private hazards: { pos: Vector3; t: number; delay: number; radius: number; damage: number }[] = [];
   started = false;
 
   private constructor(
@@ -257,6 +262,7 @@ export class LevelScene implements GameCtx {
     e.pos.y = this.world.groundAt(x, z, e.radius, 10, 20);
     e.spawn.y = e.pos.y;
     if (th.wave && !th.awake) e.setState('dormant');
+    if (e instanceof Sovereign) e.onPhase2 = () => this.hooks.voice('v5_phase');
     this.enemies.push(e);
   }
 
@@ -300,6 +306,32 @@ export class LevelScene implements GameCtx {
 
   pushPlayer(v: Vector3): void {
     this.player.vel.addInPlace(v);
+  }
+
+  hazard(pos: Vector3, delay: number, radius: number, damage: number): void {
+    const p = pos.clone();
+    p.y = this.world.groundAt(p.x, p.z, 0.3, 10, 20);
+    this.hazards.push({ pos: p, t: 0, delay, radius, damage });
+    this.sound('fireball_cast', p, { pitch: 0.5, volume: 0.7 });
+  }
+
+  private updateHazards(dt: number): void {
+    for (let i = this.hazards.length - 1; i >= 0; i--) {
+      const h = this.hazards[i];
+      h.t += dt;
+      if (Math.random() < dt * 30) this.particles.emit('fire', h.pos.add(new Vector3((Math.random() - 0.5) * h.radius, 0.1, (Math.random() - 0.5) * h.radius)), new Vector3(0, 1, 0), 1, 0.3, 0.6);
+      if (h.t < h.delay) continue;
+      this.hazards.splice(i, 1);
+      this.particles.emit('fire', h.pos.add(new Vector3(0, 0.4, 0)), new Vector3(0, 1, 0), 34, h.radius * 0.6, 1.4);
+      this.particles.emit('sparks', h.pos.add(new Vector3(0, 0.4, 0)), new Vector3(0, 1, 0), 16, 1.2);
+      this.lights.addFx(h.pos.add(new Vector3(0, 1, 0)), new Color3(1, 0.45, 0.15), 3.5, h.radius * 3, 0.4);
+      this.sound('barrel_explode', h.pos, { pitch: 0.8, volume: 0.8 });
+      const p = this.player;
+      if (Math.hypot(p.pos.x - h.pos.x, p.pos.z - h.pos.z) < h.radius + p.radius && p.pos.y < h.pos.y + 1.5) {
+        this.damagePlayer(h.damage, h.pos, 'blast');
+        p.vel.y = Math.max(p.vel.y, 5);
+      }
+    }
   }
 
   private setupFx(): void {
@@ -837,6 +869,7 @@ export class LevelScene implements GameCtx {
     this.checkSecrets();
     this.checkWaves();
     this.updateBoss();
+    this.updateHazards(dt);
     for (const tf of this.telefogs) tf.t += dt;
     this.telefogs = this.telefogs.filter((tf) => tf.t < 0.5);
 
@@ -1014,6 +1047,10 @@ export class LevelScene implements GameCtx {
     for (const tf of this.telefogs) {
       const fr = SPRITES[`telefog${Math.min(3, Math.floor(tf.t / 0.12))}`];
       b.add(fr, tf.pos.x, tf.pos.y, tf.pos.z, [1, 1, 1], { depthBias: 0.4 });
+    }
+    for (const h of this.hazards) {
+      const k = Math.min(2, Math.floor((h.t / h.delay) * 3));
+      b.add(SPRITES['erupt' + k], h.pos.x, h.pos.y + 0.25, h.pos.z, [1, 1, 1], { full: true, scale: h.radius * 0.9, depthBias: 0.3 });
     }
     this.projectiles.draw(b);
     this.debris.draw(b, (x, z) => L(x, z));

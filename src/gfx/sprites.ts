@@ -1,6 +1,7 @@
 import { RawTexture, Texture, type Scene } from '@babylonjs/core';
 import { Pix, glow, type RGBA } from './pixart';
 import { breachCore, executioner, hellbolt, ironclad, warden, type Pose } from './spritesCh23';
+import { boneShard, eruptionMark, sovereign, wraith } from './spritesCh45';
 
 // Original procedural pixel-art sprites for enemies, pickups, props and projectiles.
 // Everything is packed into one atlas so all billboards render in a single draw call.
@@ -594,6 +595,11 @@ function buildFrames(): Map<string, { pix: Pix; anchor: 'bottom' | 'center' }> {
   for (let k = 0; k < 5; k++) add('core_die' + k, breachCore(0, false, k));
   for (let k = 0; k < 4; k++) add('core_gib' + k, breachCore(0, false, k + 1));
   for (let k = 0; k < 2; k++) add('bolt' + k, hellbolt(k), 'center');
+  // ---- Chapter 4 / 5
+  monster('wraith', wraith, 56, 76, 14);
+  monster('sovereign', sovereign, 128, 128, 34);
+  for (let k = 0; k < 2; k++) add('shard' + k, boneShard(k), 'center');
+  for (let k = 0; k < 3; k++) add('erupt' + k, eruptionMark(k), 'center');
   return m;
 }
 
@@ -608,6 +614,7 @@ export function buildSpriteAtlas(): void {
       y += rowH + 2;
       rowH = 0;
     }
+    if (y + pix.h + 1 > ATLAS) throw new Error('sprite atlas overflow at ' + name);
     for (let j = 0; j < pix.h; j++)
       for (let i = 0; i < pix.w; i++) {
         const s = (j * pix.w + i) * 4;
@@ -625,7 +632,11 @@ export function buildSpriteAtlas(): void {
     rowH = Math.max(rowH, pix.h);
   }
   atlasData = data;
+  atlasFill = (y + rowH) / ATLAS;
 }
+
+/** Fraction of the atlas height in use (debug). */
+export let atlasFill = 0;
 
 export function getSpriteTexture(scene: Scene): RawTexture {
   buildSpriteAtlas();

@@ -77,7 +77,7 @@ export const WEAPONS: { pistol: HitscanWeaponDef; shotgun: HitscanWeaponDef; cha
 export const WEAPON_SLOTS: WeaponId[] = ['pistol', 'shotgun', 'chainsword'];
 export const WEAPON_SWITCH_TIME = 0.22;
 
-export type EnemyKind = 'zombieman' | 'imp' | 'pinky' | 'ironclad' | 'warden' | 'executioner' | 'core';
+export type EnemyKind = 'zombieman' | 'imp' | 'pinky' | 'ironclad' | 'warden' | 'executioner' | 'core' | 'wraith' | 'sovereign';
 export type DamageType = 'bullet' | 'pellet' | 'melee' | 'fireball' | 'blast' | 'saw';
 
 export interface EnemyDef {
@@ -154,11 +154,26 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     rangedWindup: 0, rangedCooldown: [8, 11], rangedDamage: [0, 0], rangedRange: 0,
     gibThreshold: 99999, score: 1, mass: 0, bossName: 'boss.core',
   },
+  // Chapter 4: fast skirmisher. Blinks aside when targeted, throws bone shard fans.
+  wraith: {
+    hp: 90, speed: 6.2, radius: 0.5, height: 2.0, painChance: 0.4, painTime: 0.25,
+    sightRange: 40, reaction: 0.3, meleeRange: 1.8, meleeWindup: 0.35, meleeDamage: [8, 14],
+    rangedWindup: 0.55, rangedCooldown: [1.4, 2.4], rangedDamage: [5, 8], rangedRange: 30,
+    gibThreshold: 40, score: 1, mass: 0.8,
+  },
+  // Chapter 5 final boss.
+  sovereign: {
+    hp: 3200, speed: 2.2, radius: 1.2, height: 3.6, painChance: 0.03, painTime: 0.25,
+    sightRange: 80, reaction: 0.8, meleeRange: 5.5, meleeWindup: 1.0, meleeDamage: [30, 45],
+    rangedWindup: 0.8, rangedCooldown: [1.4, 2.2], rangedDamage: [12, 18], rangedRange: 70,
+    gibThreshold: 99999, score: 1, mass: 0, bossName: 'boss.sovereign',
+  },
 };
 
 export const PINKY_CHARGE = { range: 9, windup: 0.4, speed: 11.5, duration: 0.9, cooldown: [2.5, 4] as [number, number] };
 export const FIREBALL = { speed: 12, radius: 0.28, life: 6 };
 export const HELLBOLT = { speed: 21 };
+export const SHARD = { speed: 17 };
 export const HEARING_CELLS = 20;
 
 export const BARREL = { hp: 20, radius: 0.42, height: 1.15, blastRadius: 4.2, blastDamage: 110, chainDelay: 0.14 };

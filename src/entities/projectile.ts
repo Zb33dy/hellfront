@@ -16,6 +16,7 @@ interface Fireball {
   alive: boolean;
   t: number;
   bolt: boolean;
+  shard: boolean;
 }
 
 interface Impact {
@@ -28,20 +29,21 @@ export class Projectiles {
   private balls: Fireball[] = [];
   private impacts: Impact[] = [];
 
-  fireball(from: Vector3, dir: Vector3, owner: Enemy | null, damage: number, ctx: GameCtx, opts: { speed?: number; bolt?: boolean } = {}): void {
+  fireball(from: Vector3, dir: Vector3, owner: Enemy | null, damage: number, ctx: GameCtx, opts: { speed?: number; bolt?: boolean; shard?: boolean } = {}): void {
     const b: Fireball = {
       pos: from.clone(),
       vel: dir.normalizeToNew().scale(opts.speed ?? FIREBALL.speed),
       owner,
       damage,
       life: FIREBALL.life,
-      loop: ctx.sound('fireball_fly', from, { loop: true }),
+      loop: ctx.sound('fireball_fly', from, { loop: true, pitch: opts.shard ? 1.8 : opts.bolt ? 0.7 : 1, volume: opts.shard ? 0.5 : 1 }),
       alive: true,
       t: 0,
       bolt: !!opts.bolt,
+      shard: !!opts.shard,
     };
     this.balls.push(b);
-    ctx.lights.addFx(b.pos, b.bolt ? new Color3(0.7, 0.3, 1) : new Color3(1, 0.5, 0.15), 1.8, 7, undefined, () => (b.alive ? b.pos : null));
+    ctx.lights.addFx(b.pos, b.bolt ? new Color3(0.7, 0.3, 1) : b.shard ? new Color3(0.5, 1, 0.8) : new Color3(1, 0.5, 0.15), b.shard ? 0.9 : 1.8, b.shard ? 4 : 7, undefined, () => (b.alive ? b.pos : null));
   }
 
   update(dt: number, ctx: GameCtx): void {
@@ -113,7 +115,7 @@ export class Projectiles {
 
   draw(batch: SpriteBatch): void {
     const bright: [number, number, number] = [1, 1, 1];
-    for (const b of this.balls) batch.add(SPRITES[(b.bolt ? 'bolt' : 'fireball') + (Math.floor(b.t * 12) % 2)], b.pos.x, b.pos.y, b.pos.z, bright, { full: true, scale: b.bolt ? 1.4 : 1.2, depthBias: 0 });
+    for (const b of this.balls) batch.add(SPRITES[(b.bolt ? 'bolt' : b.shard ? 'shard' : 'fireball') + (Math.floor(b.t * 12) % 2)], b.pos.x, b.pos.y, b.pos.z, bright, { full: true, scale: b.bolt ? 1.4 : b.shard ? 1.1 : 1.2, depthBias: 0 });
     for (const im of this.impacts) {
       const f = Math.min(2, Math.floor(im.t / 0.1));
       batch.add(SPRITES[`fireImpact${f}`], im.pos.x, im.pos.y, im.pos.z, bright, { full: true, scale: 1.4, depthBias: 0.3 });
