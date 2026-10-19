@@ -39,6 +39,8 @@ const things: ThingDef[] = [
   { kind: 'healthSmall', x: 23, y: 37.5 },
   { kind: 'shells', x: 13.5, y: 44.5 },
   { kind: 'rounds', x: 4.5, y: 40 },
+  { kind: 'launcher', x: 23, y: 44.5 },
+  { kind: 'rockets', x: 4.5, y: 44.5 },
   { kind: 'grenades', x: 23, y: 31 },
   { kind: 'bulletClip', x: 4.5, y: 31 },
   { kind: 'barrel', x: 8.2, y: 31 },
@@ -81,6 +83,8 @@ const things: ThingDef[] = [
   { kind: 'rounds', x: 4.5, y: 19 },
   { kind: 'rounds', x: 35, y: 19 },
   { kind: 'rounds', x: 20, y: 17 },
+  { kind: 'rockets', x: 9, y: 21 },
+  { kind: 'rockets', x: 31, y: 21 },
   { kind: 'grenades', x: 35, y: 12.5 },
   { kind: 'grenades', x: 4.5, y: 12.5 },
 ];

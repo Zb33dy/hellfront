@@ -19,7 +19,7 @@ import type { PlayerState } from '../entities/player';
 import { siegeBest } from '../scenes/siege';
 import type { LevelStats } from '../ui/levelComplete';
 
-export type GameState = 'boot' | 'bootReady' | 'menu' | 'loading' | 'ready' | 'playing' | 'paused' | 'dead' | 'complete' | 'chapter';
+export type GameState = 'boot' | 'bootReady' | 'menu' | 'loading' | 'ready' | 'playing' | 'paused' | 'shop' | 'dead' | 'complete' | 'chapter';
 
 /** Top-level state machine: boot → menu → loading → playing ⇄ paused → dead / complete → chapter end. */
 export class Game {
@@ -79,8 +79,11 @@ export class Game {
         const data = getLevel(this.levelId);
         const next = getLevel(data?.next);
         const title = next ? t('chapter.end', { n: data?.chapter ?? 1 }) : t('ending.title');
-        this.ui.chapter.show(title, t(data?.outroKey ?? 'ch1.outro'), !!next);
         this.state = 'chapter';
+        this.audio.music.setIntensity('calm');
+        void this.audio.playNarration('n_ch' + (data?.chapter ?? 1)).then((dur) => {
+          if (this.state === 'chapter') this.ui.chapter.show(title, t(data?.outroKey ?? 'ch1.outro'), !!next, dur || 6);
+        });
       },
       onChapterMenu: () => this.quitToMenu(),
       onChapterNext: () => {
@@ -88,6 +91,7 @@ export class Game {
         if (next) this.startLevel(next.id, this.difficulty, null, this.nextCarry);
       },
       onLoadingConfirm: () => this.confirmLoading(),
+      onShopClose: () => this.closeShop(),
     });
     this.input.onLockLost = () => {
       if (this.state === 'playing') this.pause();
@@ -203,6 +207,7 @@ export class Game {
       onComplete: (s) => this.onComplete(s),
       onCheckpoint: (s) => SaveStore.save(s),
       voice: (id) => this.voice(id),
+      openShop: () => this.openShop(),
     }, save, progress, carry);
     this.ui.loading.ready();
     this.state = 'ready';
@@ -243,10 +248,29 @@ export class Game {
   }
 
   private clearVoices(): void {
+    this.audio.stopNarration();
     this.voiceQueue.length = 0;
     clearTimeout(this.voiceTimer);
     this.voiceBusyUntil = 0;
     this.audio.stopVoice();
+  }
+
+  private openShop(): void {
+    const sg = this.level?.siege;
+    if (!sg || this.state !== 'playing') return;
+    this.state = 'shop';
+    this.input.releaseLock();
+    this.ui.navEnabled = true;
+    this.ui.hud.clickEl.classList.remove('show');
+    this.ui.shop.show({ souls: () => sg.souls, items: () => sg.items(), buy: (id) => sg.buy(id) });
+  }
+
+  private closeShop(): void {
+    if (this.state !== 'shop') return;
+    this.ui.shop.hide();
+    this.ui.navEnabled = false;
+    this.state = 'playing';
+    void this.lock();
   }
 
   pause(): void {
@@ -321,6 +345,7 @@ export class Game {
         }
         break;
       case 'paused':
+      case 'shop':
       case 'dead':
       case 'complete':
         if (this.level) {

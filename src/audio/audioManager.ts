@@ -314,6 +314,40 @@ export class AudioManager {
     return dur + 0.25;
   }
 
+  private narration: AudioBufferSourceNode | null = null;
+  private narrationCache = new Map<string, Promise<AudioBuffer | null>>();
+
+  /** Plays a narration file (assets/audio/narration/<id>.mp3) dry on the voice bus. Returns its length, or 0. */
+  async playNarration(id: string): Promise<number> {
+    this.stopNarration();
+    const url = fileUrl(`narration/${id}.mp3`);
+    if (!url) return 0;
+    let p = this.narrationCache.get(url);
+    if (!p) {
+      p = fetch(url).then((r) => r.arrayBuffer()).then((b) => this.ctx.decodeAudioData(b)).catch(() => null);
+      this.narrationCache.set(url, p);
+    }
+    const buf = await p;
+    if (!buf) return 0;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    const g = this.ctx.createGain();
+    g.gain.value = 1.1;
+    src.connect(g).connect(this.voiceBus);
+    src.start(this.ctx.currentTime + 0.4);
+    this.narration = src;
+    return buf.duration + 0.4;
+  }
+
+  stopNarration(): void {
+    try {
+      this.narration?.stop();
+    } catch {
+      /* ignore */
+    }
+    this.narration = null;
+  }
+
   stopVoice(): void {
     if (!this.currentVoice) return;
     try {

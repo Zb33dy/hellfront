@@ -19,6 +19,7 @@ export interface PlayerEvents {
   onLand(speed: number): void;
   onNukage(): void;
   onJump(): void;
+  onDash(): void;
 }
 
 /** First-person body: Quake-style acceleration, circle collision with wall sliding, step smoothing. */
@@ -31,7 +32,7 @@ export class Player {
   height: number = PLAYER.height;
   health = 100;
   armor = 0;
-  ammo: Record<AmmoType, number> = { bullets: PICKUPS.startBullets, shells: 0, rounds: 0, grenades: 0 };
+  ammo: Record<AmmoType, number> = { bullets: PICKUPS.startBullets, shells: 0, rounds: 0, rockets: 0, grenades: 0 };
   weapons = new Set<WeaponId>(['pistol']);
   keys = new Set<KeyColor>();
   onGround = true;
@@ -49,6 +50,14 @@ export class Player {
   speed = 0;
   /** 0 standing … 1 fully crouched (smoothed). */
   crouch = 0;
+  maxHealth: number = PLAYER.maxHealth;
+  speedMul = 1;
+  /** Dash state: remaining burst time, cooldown, and invulnerability window. */
+  dashT = 0;
+  dashCD = 0;
+  invulnT = 0;
+  private dashDir = new Vector3();
+  private lastSprintTap = -1e9;
 
   constructor(private world: World, private ev: PlayerEvents) {}
 
@@ -86,7 +95,7 @@ export class Player {
   applyState(s: PlayerState): void {
     this.health = s.health;
     this.armor = s.armor;
-    this.ammo = Object.assign({ bullets: 0, shells: 0, rounds: 0, grenades: 0 }, s.ammo);
+    this.ammo = Object.assign({ bullets: 0, shells: 0, rounds: 0, rockets: 0, grenades: 0 }, s.ammo);
     this.weapons = new Set(s.weapons);
     this.keys = new Set(s.keys);
   }
@@ -136,7 +145,7 @@ export class Player {
     if (Math.abs(this.crouch - (wantCrouch ? 1 : 0)) < 0.01) this.crouch = wantCrouch ? 1 : 0;
     this.height = PLAYER.height - (PLAYER.height - PLAYER.crouchHeight) * this.crouch;
     const sprint = input.isDown('sprint') && this.crouch < 0.3;
-    const maxSpeed = PLAYER.walkSpeed * (sprint ? PLAYER.sprintMul : 1) * (1 - (1 - PLAYER.crouchSpeedMul) * this.crouch);
+    const maxSpeed = PLAYER.walkSpeed * (sprint ? PLAYER.sprintMul : 1) * (1 - (1 - PLAYER.crouchSpeedMul) * this.crouch) * this.speedMul;
 
     if (this.noclip) {
       const f = this.forward;
@@ -148,8 +157,28 @@ export class Player {
       return;
     }
 
+    // dash: double-tap sprint or the dash key; a short, fast burst with i-frames
+    this.dashCD -= dt;
+    this.invulnT -= dt;
+    const tap = input.pressed('sprint');
+    const now = performance.now();
+    const dashReq = input.pressed('dash') || (tap && now - this.lastSprintTap < 280);
+    if (tap) this.lastSprintTap = dashReq ? -1e9 : now;
+    if (dashReq && this.dashCD <= 0) {
+      if (wl > 0) this.dashDir.set(wx, 0, wz);
+      else this.dashDir.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+      this.dashT = PLAYER.dashTime;
+      this.dashCD = PLAYER.dashCooldown;
+      this.invulnT = 0.25;
+      this.ev.onDash();
+    }
+
     const hv = Math.hypot(this.vel.x, this.vel.z);
-    if (this.onGround) {
+    if (this.dashT > 0) {
+      this.dashT -= dt;
+      this.vel.x = this.dashDir.x * PLAYER.dashSpeed;
+      this.vel.z = this.dashDir.z * PLAYER.dashSpeed;
+    } else if (this.onGround) {
       // friction
       const drop = hv * PLAYER.friction * dt;
       const ns = Math.max(0, hv - Math.max(drop, wl === 0 ? 2.5 * dt : 0));

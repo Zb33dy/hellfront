@@ -45,6 +45,8 @@ export interface GameCtx {
   /** Chainsword/melee sweep in front of the player. */
   playerMelee(def: MeleeWeaponDef): 'enemy' | 'wall' | 'none';
   muzzleFlash(big: boolean): void;
+  /** Launches a player rocket from the eye. */
+  fireRocket(): void;
   /** Spawns a monster mid-fight (boss summons). World coordinates. */
   summon(kind: EnemyKind, x: number, z: number, opts?: { hpMul?: number; tracked?: boolean }): Enemy | null;
   /** Adds velocity to the player (shockwaves). */

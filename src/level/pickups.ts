@@ -1,5 +1,5 @@
 import type { Vector3 } from '@babylonjs/core';
-import { PICKUPS, PLAYER, type KeyColor } from '../core/config';
+import { PICKUPS, type KeyColor } from '../core/config';
 import type { SoundId } from '../audio/audioManifest';
 import type { Player } from '../entities/player';
 import type { PickupKind } from './types';
@@ -18,7 +18,7 @@ export interface PickupResult {
   msg: string;
   sound: SoundId;
   flash: 'gold';
-  weapon?: 'shotgun' | 'chainsword' | 'sniper';
+  weapon?: 'shotgun' | 'chainsword' | 'sniper' | 'launcher';
 }
 
 /** Applies a pickup to the player. Returns null if it can't be taken (e.g. full health). */
@@ -26,12 +26,12 @@ export function applyPickup(kind: PickupKind, p: Player, ammoMul: number): Picku
   const am = (n: number) => Math.max(1, Math.round(n * ammoMul));
   switch (kind) {
     case 'healthSmall':
-      if (p.health >= PLAYER.maxHealth) return null;
-      p.health = Math.min(PLAYER.maxHealth, p.health + PICKUPS.healthSmall);
+      if (p.health >= p.maxHealth) return null;
+      p.health = Math.min(p.maxHealth, p.health + PICKUPS.healthSmall);
       return { msg: 'msg.healthSmall', sound: 'pickup_health', flash: 'gold' };
     case 'healthLarge':
-      if (p.health >= PLAYER.maxHealth) return null;
-      p.health = Math.min(PLAYER.maxHealth, p.health + PICKUPS.healthLarge);
+      if (p.health >= p.maxHealth) return null;
+      p.health = Math.min(p.maxHealth, p.health + PICKUPS.healthLarge);
       return { msg: 'msg.healthLarge', sound: 'pickup_health', flash: 'gold' };
     case 'armor':
       if (p.armor >= PICKUPS.armor) return null;
@@ -62,6 +62,14 @@ export function applyPickup(kind: PickupKind, p: Player, ammoMul: number): Picku
       return p.addAmmo('rounds', am(PICKUPS.rounds)) ? { msg: 'msg.rounds', sound: 'pickup_ammo', flash: 'gold' } : null;
     case 'grenades':
       return p.addAmmo('grenades', PICKUPS.grenades) ? { msg: 'msg.grenades', sound: 'pickup_ammo', flash: 'gold' } : null;
+    case 'rockets':
+      return p.addAmmo('rockets', am(PICKUPS.rockets)) ? { msg: 'msg.rockets', sound: 'pickup_ammo', flash: 'gold' } : null;
+    case 'launcher': {
+      const had = p.weapons.has('launcher');
+      p.weapons.add('launcher');
+      p.addAmmo('rockets', am(PICKUPS.launcherRockets));
+      return { msg: 'msg.launcher', sound: 'pickup_weapon', flash: 'gold', weapon: had ? undefined : 'launcher' };
+    }
     case 'sniper': {
       const had = p.weapons.has('sniper');
       p.weapons.add('sniper');
@@ -76,4 +84,4 @@ export function applyPickup(kind: PickupKind, p: Player, ammoMul: number): Picku
   }
 }
 
-export const PICKUP_SCALE: Partial<Record<PickupKind, number>> = { keyRed: 1.1, keyBlue: 1.1, keyYellow: 1.1, armor: 1.1, sniper: 1.15 };
+export const PICKUP_SCALE: Partial<Record<PickupKind, number>> = { keyRed: 1.1, keyBlue: 1.1, keyYellow: 1.1, armor: 1.1, sniper: 1.15, launcher: 1.15 };

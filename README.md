@@ -22,7 +22,7 @@ npm run build
 
 ## Controls
 
-WASD move · mouse look · LMB fire · RMB scope (rifle) · E use · 1/2/3/4 weapons · Z previous weapon · G frag grenade · Q focus (slows the world, not you) · C crouch · Space jump · Shift sprint · Esc pause · F3 debug overlay · F4 noclip.
+WASD move · mouse look · LMB fire · RMB scope (rifle) · E use · 1–5 weapons · Z previous weapon · G frag grenade · Q focus (slows the world, not you) · C crouch · V or double-tap Shift dash · E executes staggered monsters · Space jump · Shift sprint · B Siege shop · Esc pause · F3 debug overlay · F4 noclip.
 All bindings can be changed in Settings.
 
 ## Campaign
@@ -38,13 +38,26 @@ All bindings can be changed in Settings.
 Chapters can be started from **CHAPTERS** in the main menu; finishing a chapter carries your weapons, ammo and health into the next one.
 Checkpoints save automatically (localStorage). Subtitles in English and Turkish.
 
+## Combat systems
+
+- **Style rank** (D → SSS): kills feed it, variety, airborne/bullet-time/explosive kills and executions feed it more; getting hit or idling drains it.
+- **Executions**: monsters below ~22% health stagger and glow; press E up close for an instant kill that drops health and ammo.
+- **Dash**: short burst with invulnerability frames.
+- **Rocket launcher** (5): splash damage, found in chapters 4–5 and in Siege.
+
 ## Siege mode
 
-Endless rounds in a walled arena. Each round spends a growing budget on monsters that pour out of eight gates; their health grows every round, and supplies respawn between rounds. Every fifth round the **Warhound** — a two-headed hellhound that pounces, double-bites and breathes fire — hunts alone, one more each time. Your best round is saved.
+Endless rounds in a walled arena. Each round spends a growing budget on monsters that pour out of eight gates; their health grows every round, and supplies respawn between rounds. Every fifth round the **Warhound** — a two-headed hellhound that pounces, double-bites and breathes fire — hunts alone, one more each time. Kills earn souls (multiplied by your style rank) to spend in the **Soul Market** between rounds (B): permanent power, vitality, focus and speed upgrades plus refills. From round 3 a round may carry a modifier (swift, blade-only, darkness, armored, glass, frenzy) that pays extra souls. Your best round is saved.
 
 ## Music
 
 The soundtrack is original and synthesized live in Web Audio (src/audio/musicManager.ts): distorted power-chord guitars, palm mutes, synth drums, bass and an electronic lead in an industrial-metal style, with a dark ambient pad that crossfades in when nothing is hunting you.
+
+## Cutscenes
+
+Each chapter ends on a black cinematic card: the outro types itself out in sync with a narrator voice (ElevenLabs, src/assets/audio/narration/).
+
+To use recorded music instead of the procedural score, drop hellfront_combat.mp3 / hellfront_calm.mp3 / siege_combat.mp3 / siege_calm.mp3 into src/assets/audio/music/.
 
 ## Layout
 

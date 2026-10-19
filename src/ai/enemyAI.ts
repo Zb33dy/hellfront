@@ -16,6 +16,13 @@ export function updateEnemy(e: Enemy, dt: number, ctx: GameCtx): void {
   e.animT += dt;
   e.painFlash -= dt;
   if (e.state === 'dormant') return;
+  if (e.staggerT > 0 && e.alive) {
+    e.staggerT -= dt;
+    e.moving = false;
+    applyPhysics(e, dt, ctx, 0, 0);
+    if (e.staggerT <= 0) e.setState('chase');
+    return;
+  }
   if (e.state === 'dying' || e.state === 'dead') {
     e.deathT += dt;
     if (e.state === 'dying' && e.deathT > 0.7) e.setState('dead');
@@ -121,7 +128,7 @@ export function updateEnemy(e: Enemy, dt: number, ctx: GameCtx): void {
           ux /= l;
           uz /= l;
         }
-        const sp = e.chaseSpeed() * (0.9 + 0.1 * ctx.diff.aggression);
+        const sp = e.chaseSpeed() * e.speedMul * (0.9 + 0.1 * ctx.diff.aggression);
         mx = ux * sp;
         mz = uz * sp;
         e.moving = true;

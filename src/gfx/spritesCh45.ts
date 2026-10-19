@@ -247,3 +247,37 @@ export function warhound(p: Pose): Pix {
   s.finish([14, 6, 6]);
   return s;
 }
+
+// ------------------------------------------------------------------ Rocket launcher pickups + rocket in flight
+
+export function launcherPickup(): Pix {
+  const s = new Pix(64, 20, 99);
+  s.rect(2, 6, 50, 8, [70, 78, 58]);
+  s.rect(2, 7, 50, 2, [96, 106, 80]);
+  s.ell(3, 10, 2, 4, [30, 32, 26]);
+  s.rect(52, 5, 8, 10, [40, 42, 36]);
+  s.rect(26, 14, 4, 5, [40, 40, 44]);
+  s.rect(36, 14, 4, 5, [40, 40, 44]);
+  for (let k = 0; k < 3; k++) s.rect(10 + k * 12, 6, 2, 8, [200, 170, 40]);
+  s.finish();
+  return s;
+}
+
+export function rocketsBox(): Pix {
+  const s = new Pix(24, 16, 100);
+  s.rect(1, 7, 22, 8, [70, 78, 58]);
+  for (let k = 0; k < 3; k++) {
+    s.rect(3 + k * 7, 0, 4, 9, [150, 154, 160]);
+    s.poly([[3 + k * 7, 1], [7 + k * 7, 1], [5 + k * 7, -2]], [200, 40, 30]);
+  }
+  s.finish();
+  return s;
+}
+
+export function rocketSprite(k: number): Pix {
+  const s = new Pix(18, 18, 101 + k);
+  s.ell(9, 9, 7 + k, 7 + k, glow(255, 150, 50, 0.6), 0);
+  s.ell(9, 9, 4, 4, glow(255, 230, 160, 1), 0);
+  s.ell(9, 9, 2, 2, [80, 84, 70]);
+  return s;
+}

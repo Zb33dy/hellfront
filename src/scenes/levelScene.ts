@@ -38,9 +38,11 @@ import { Wraith } from '../entities/wraith';
 import { Sovereign } from '../entities/sovereign';
 import { Warhound } from '../entities/warhound';
 import { SiegeController } from './siege';
+import { StyleMeter, type KillTag } from './style';
 import type { PlayerState } from '../entities/player';
 import { Projectiles } from '../entities/projectile';
 import { Grenades } from '../entities/grenade';
+import { Rockets } from '../entities/rocket';
 import { Barrel, type Prop } from '../entities/barrel';
 import { WeaponSystem } from '../weapons/weaponSystem';
 import type { UIManager } from '../ui/uiManager';
@@ -52,6 +54,8 @@ export interface LevelHooks {
   onComplete(stats: LevelStats): void;
   onCheckpoint(save: SaveData): void;
   voice(id: string): void;
+  /** Siege: open the intermission shop. */
+  openShop(): void;
 }
 
 function makeEnemy(kind: EnemyKind, x: number, z: number, angle: number, hpMul: number): Enemy {
@@ -69,7 +73,7 @@ function makeEnemy(kind: EnemyKind, x: number, z: number, angle: number, hpMul: 
   }
 }
 
-const PICKUP_KINDS = new Set<string>(['healthSmall', 'healthLarge', 'armor', 'bulletClip', 'bulletBox', 'shells', 'shellBox', 'keyRed', 'keyBlue', 'keyYellow', 'shotgun', 'chainsword', 'sniper', 'rounds', 'grenades']);
+const PICKUP_KINDS = new Set<string>(['healthSmall', 'healthLarge', 'armor', 'bulletClip', 'bulletBox', 'shells', 'shellBox', 'keyRed', 'keyBlue', 'keyYellow', 'shotgun', 'chainsword', 'sniper', 'rounds', 'grenades', 'launcher', 'rockets']);
 
 export class LevelScene implements GameCtx {
   readonly scene: Scene;
@@ -78,9 +82,11 @@ export class LevelScene implements GameCtx {
   readonly shake = new ScreenShake();
   readonly projectiles = new Projectiles();
   readonly grenades = new Grenades();
+  readonly rockets = new Rockets();
   /** Focus (bullet time) meter 0..1 and whether it is running. */
   focus = 1;
   focusOn = false;
+  focusDuration: number = FOCUS.duration;
   private grenadeCD = 0;
   private zoom = 0;
   private baseFov = 1.2;
@@ -122,6 +128,9 @@ export class LevelScene implements GameCtx {
   private summoned = new Set<Enemy>();
   boss: Enemy | null = null;
   siege: SiegeController | null = null;
+  readonly style = new StyleMeter();
+  private gloryPending = false;
+  private dashFov = 0;
   private combatHold = 0;
   private bossShown = false;
   private hazards: { pos: Vector3; t: number; delay: number; radius: number; damage: number }[] = [];
@@ -219,6 +228,11 @@ export class LevelScene implements GameCtx {
         if (lava) this.particles.emit('fire', this.player.pos.add(new Vector3(0, 0.2, 0)), new Vector3(0, 1, 0), 8, 0.6);
       },
       onJump: () => {},
+      onDash: () => {
+        this.sound('fireball_fly', null, { pitch: 2.2, volume: 0.5 });
+        this.dashFov = 1;
+        this.particles.emit('dust', this.player.pos.add(new Vector3(0, 0.2, 0)), new Vector3(0, 1, 0), 8, 0.6);
+      },
     });
 
     const skill = this.difficulty === 'easy' ? 'e' : this.difficulty === 'normal' ? 'n' : 'h';
@@ -289,7 +303,7 @@ export class LevelScene implements GameCtx {
       return;
     }
     const l = this.data.startLoadout;
-    p.applyState({ health: l.health, armor: l.armor, ammo: { bullets: l.bullets, shells: l.shells, rounds: l.rounds ?? 0, grenades: l.grenades ?? 0 }, weapons: [...l.weapons], keys: [] });
+    p.applyState({ health: l.health, armor: l.armor, ammo: { bullets: l.bullets, shells: l.shells, rounds: l.rounds ?? 0, rockets: l.rockets ?? 0, grenades: l.grenades ?? 0 }, weapons: [...l.weapons], keys: [] });
   }
 
   summon(kind: EnemyKind, x: number, z: number, opts: { hpMul?: number; tracked?: boolean } = {}): Enemy | null {
@@ -323,6 +337,51 @@ export class LevelScene implements GameCtx {
     this.focusOn = on;
     this.audio.play('teleport', { pitch: on ? 0.45 : 0.8, volume: 0.6 });
     if (on) this.ui.hud.flash('gold', 0.15);
+  }
+
+  /** A staggered monster close in front of the player, if any. */
+  private gloryTarget(): Enemy | null {
+    const p = this.player;
+    if (p.dead) return null;
+    const f = p.forward;
+    let best: Enemy | null = null;
+    let bd = 3.8;
+    for (const e of this.enemies) {
+      if (!e.alive || e.staggerT <= 0) continue;
+      const dx = e.pos.x - p.pos.x, dz = e.pos.z - p.pos.z;
+      const d = Math.hypot(dx, dz) - e.radius;
+      if (d > bd) continue;
+      if ((dx * f.x + dz * f.z) / Math.max(0.01, Math.hypot(dx, dz)) < 0.45) continue;
+      best = e;
+      bd = d;
+    }
+    return best;
+  }
+
+  private gloryKill(e: Enemy): void {
+    const p = this.player;
+    const dir = new Vector3(e.pos.x - p.pos.x, 0, e.pos.z - p.pos.z).normalize();
+    // lunge in
+    const stand = e.pos.subtract(dir.scale(e.radius + p.radius + 0.25));
+    if (this.world.los(p.eye, new Vector3(stand.x, p.eye.y, stand.z))) {
+      p.pos.x = stand.x;
+      p.pos.z = stand.z;
+    }
+    p.yaw = Math.atan2(dir.x, dir.z);
+    p.invulnT = 0.7;
+    this.sound('chainsword_hit', e.pos, { pitch: 0.8, volume: 1.2 });
+    this.sound('gib', e.pos);
+    this.shake.add(0.6);
+    this.ui.hud.flash('gold', 0.25);
+    this.gloryPending = true;
+    this.damageEnemy(e, e.hp + 9999, dir, 'saw', e.eye);
+    this.gloryPending = false;
+    // the reward: health plus ammo for what you are holding
+    this.spawnDrop('healthSmall', e.pos);
+    this.spawnDrop('healthSmall', e.pos.add(new Vector3(0.4, 0, 0.3)));
+    const ammo = this.weapons.ammoType;
+    const map: Record<string, PickupKind> = { bullets: 'bulletClip', shells: 'shells', rounds: 'rounds', grenades: 'grenades', rockets: 'rockets' };
+    this.spawnDrop(ammo ? map[ammo] ?? 'shells' : 'shells', e.pos.add(new Vector3(-0.4, 0, 0.3)));
   }
 
   /** Siege: every original pickup comes back between rounds. */
@@ -440,9 +499,10 @@ export class LevelScene implements GameCtx {
 
   damagePlayer(amount: number, from: Vector3, kind: DamageKind): void {
     const p = this.player;
-    if (p.dead || p.noclip || this.completed) return;
-    amount = Math.round(amount);
+    if (p.dead || p.noclip || this.completed || p.invulnT > 0) return;
+    amount = Math.round(amount * (this.siege?.playerDamageMul() ?? 1));
     if (amount <= 0) return;
+    this.style.hurt(amount);
     const absorbed = Math.min(p.armor, Math.floor(amount / 3));
     p.armor -= absorbed;
     p.health -= amount - absorbed;
@@ -473,14 +533,35 @@ export class LevelScene implements GameCtx {
     const at = hitPos ?? e.eye;
     const d = dir.normalizeToNew();
     this.particles.emit('blood', at, d.scale(-0.3).add(new Vector3(0, 0.6, 0)), Math.min(26, 6 + amount), 0.6);
+    if (this.siege && kind !== 'fireball' && kind !== 'melee') amount *= this.siege.enemyDamageMul(kind);
     e.damage(amount, d, kind, this);
+    if (e.alive && !e.staggered && !e.def.bossName && e.hp <= e.maxHp * 0.22 && kind !== 'fireball') {
+      e.staggered = true;
+      e.staggerT = 2.8;
+      e.setState('pain');
+      this.sound(e.sounds.pain, e.pos, { pitch: (e.sounds.pitch ?? 1) * 0.8 });
+    }
     if (!e.alive) {
       if (!this.summoned.has(e)) this.kills++;
+      if (kind !== 'fireball' && kind !== 'melee') {
+        const tags: KillTag[] = [];
+        if (this.gloryPending) tags.push('glory');
+        if (!this.player.onGround) tags.push('air');
+        if (this.focusOn) tags.push('focus');
+        if (kind === 'blast') tags.push('explosive');
+        if (kind === 'saw' && !this.gloryPending) tags.push('melee');
+        if (kind === 'bullet' && Vector3.Distance(e.pos, this.player.pos) > 30) tags.push('longshot');
+        const before = this.style.rankIndex;
+        this.style.kill(kind === 'blast' ? 'explosive' : this.weapons.current, tags);
+        while (this.style.feed.length) this.ui.hud.styleBonus(t(this.style.feed.shift()!));
+        if (this.style.rankIndex > before && this.style.rankIndex >= 3) this.sound('pickup_key', null, { pitch: 0.7 + this.style.rankIndex * 0.08, volume: 0.6 });
+        this.siege?.onKill(e, this.style.rank.mul);
+      }
       if (this.siege && Math.random() < 0.22) {
         const drops: PickupKind[] = ['shells', 'rounds', 'bulletClip', 'healthSmall', 'grenades', 'healthSmall'];
         this.spawnDrop(drops[Math.floor(Math.random() * drops.length)], e.pos);
       }
-      else if (Math.random() < 0.7) {
+      if (this.summoned.has(e) && Math.random() < 0.7) {
         const drops: PickupKind[] = ['shells', 'rounds', 'bulletClip', 'healthSmall', 'grenades', 'shells', 'rounds'];
         this.spawnDrop(drops[Math.floor(Math.random() * drops.length)], e.pos);
       }
@@ -651,6 +732,10 @@ export class LevelScene implements GameCtx {
       return 'wall';
     }
     return 'none';
+  }
+
+  fireRocket(): void {
+    this.rockets.fire(this);
   }
 
   muzzleFlash(big: boolean): void {
@@ -845,6 +930,11 @@ export class LevelScene implements GameCtx {
   // ------------------------------------------------------------------ frame
 
   private tryUse(): void {
+    const glory = this.gloryTarget();
+    if (glory) {
+      this.gloryKill(glory);
+      return;
+    }
     const p = this.player;
     const g = this.built.grid;
     const here = g.cellAt(p.pos.x, p.pos.z);
@@ -888,6 +978,7 @@ export class LevelScene implements GameCtx {
       this.ui.hud.message(p.noclip ? 'NOCLIP ON' : 'NOCLIP OFF');
     }
     if (!p.dead && input.pressed('use')) this.tryUse();
+    if (!p.dead && this.siege?.shopOpen && input.pressed('shop')) this.hooks.openShop();
 
     // Q: focus — the world runs at FOCUS.worldScale, the marine at full speed
     if (!p.dead && input.pressed('focus')) {
@@ -895,7 +986,7 @@ export class LevelScene implements GameCtx {
       else if (this.focus >= FOCUS.minToStart) this.setFocus(true);
     }
     if (this.focusOn) {
-      this.focus -= dt / FOCUS.duration;
+      this.focus -= dt / this.focusDuration;
       if (this.focus <= 0 || p.dead) {
         this.focus = Math.max(0, this.focus);
         this.setFocus(false);
@@ -945,6 +1036,7 @@ export class LevelScene implements GameCtx {
     this.separate();
     this.projectiles.update(wdt, this);
     this.grenades.update(wdt, this);
+    this.rockets.update(wdt, this);
     for (const b of this.barrels) b.update(wdt, this);
     this.updatePickups();
     this.triggers.update(dt, p.pos.x, p.pos.z);
@@ -960,6 +1052,12 @@ export class LevelScene implements GameCtx {
     this.debris.update(wdt);
     this.shake.update(dt);
     this.ui.hud.setFocus(this.focus, this.focusOn);
+    this.style.update(dt);
+    const sr = this.style.rank;
+    this.ui.hud.setStyle(sr.letter, t(sr.key), this.style.progress, this.style.points > 1, this.style.rankIndex);
+    this.ui.hud.prompt(this.gloryTarget() ? t('glory.prompt') : null);
+    this.dashFov = Math.max(0, this.dashFov - dt * 5);
+    this.camera.fov = this.baseFov * (1 - 0.72 * this.zoom) * (1 + 0.08 * this.dashFov);
 
     // camera
     const eye = p.eye;
@@ -1123,6 +1221,10 @@ export class LevelScene implements GameCtx {
       if (!f) continue;
       let l = L(e.pos.x, e.pos.z);
       if (e.painFlash > 0) l = [l[0] * 1.8 + 0.5, l[1] * 1.4 + 0.25, l[2] * 1.4 + 0.25];
+      if (e.staggerT > 0 && e.alive) {
+        const k = 0.5 + 0.5 * Math.sin(this.elapsed * 14);
+        l = [l[0] + 0.9 * k + 0.3, l[1] + 0.45 * k + 0.1, l[2] * 0.6];
+      }
       let flip = false;
       if (e.moving) flip = Math.sin(e.yaw) * right.x + Math.cos(e.yaw) * right.z < -0.2;
       b.add(f, e.pos.x, e.pos.y, e.pos.z, l, { flip, depthBias: e.state === 'dead' ? 0.05 : 0.15 });
@@ -1150,6 +1252,7 @@ export class LevelScene implements GameCtx {
     }
     this.projectiles.draw(b);
     this.grenades.draw(b, this);
+    this.rockets.draw(b);
     this.debris.draw(b, (x, z) => L(x, z));
     b.end();
   }
@@ -1210,8 +1313,8 @@ export class LevelScene implements GameCtx {
 
   debugGiveAll(): void {
     const p = this.player;
-    p.weapons = new Set(['pistol', 'shotgun', 'chainsword', 'sniper']);
-    p.ammo = { bullets: 200, shells: 50, rounds: 30, grenades: 8 };
+    p.weapons = new Set(['pistol', 'shotgun', 'chainsword', 'sniper', 'launcher']);
+    p.ammo = { bullets: 200, shells: 50, rounds: 30, rockets: 20, grenades: 8 };
     p.keys = new Set(['red', 'blue']);
     p.health = 100;
     p.armor = 200;

@@ -80,23 +80,54 @@ export class ChapterEndScreen {
 
   constructor(private sound: (s: UISound) => void, private onMenu: () => void, private onNext: () => void) {}
 
-  show(title: string, body: string, hasNext: boolean): void {
+  private typeTimer = 0;
+
+  /** Cinematic chapter card: the text types itself out over \`duration\` seconds (synced to narration), then the buttons appear. */
+  show(title: string, body: string, hasNext: boolean, duration = 0): void {
+    clearInterval(this.typeTimer);
     this.el.innerHTML = '';
     this.el.append(logo());
     const box = h('div', { class: 'complete-box plate' });
     box.style.marginTop = '30px';
     box.append(h('div', { class: 'panel-title', text: title }));
-    box.append(h('div', { class: 'chapter-body', html: body }));
+    const bodyEl = h('div', { class: 'chapter-body' });
+    box.append(bodyEl);
+    this.typewrite(bodyEl, body, duration);
     const btns: HTMLButtonElement[] = [];
     if (hasNext) btns.push(button(t('chapter.next'), () => this.onNext(), this.sound));
     btns.push(button(t('chapter.menu'), () => this.onMenu(), this.sound));
     box.append(...btns);
     this.el.append(box);
     this.nav = new MenuNav(btns, this.sound, null);
-    this.el.classList.add('show');
+    this.el.classList.add('show', 'cinematic');
+  }
+
+  /** Reveals HTML text character by character (tags are emitted whole). */
+  private typewrite(el: HTMLElement, html: string, duration: number): void {
+    if (duration <= 0) {
+      el.innerHTML = html;
+      return;
+    }
+    const tokens = html.match(/<[^>]+>|&[a-z]+;|[^<&]/gi) ?? [];
+    const chars = tokens.filter((tk) => !tk.startsWith('<')).length;
+    const per = (duration * 1000 * 0.92) / Math.max(1, chars);
+    let i = 0;
+    let out = '';
+    this.typeTimer = window.setInterval(() => {
+      // skip over tags instantly
+      while (i < tokens.length && tokens[i].startsWith('<')) out += tokens[i++];
+      if (i >= tokens.length) {
+        clearInterval(this.typeTimer);
+        el.innerHTML = html;
+        return;
+      }
+      out += tokens[i++];
+      el.innerHTML = out + '<span class="caret">▌</span>';
+    }, per);
   }
 
   hide(): void {
-    this.el.classList.remove('show');
+    clearInterval(this.typeTimer);
+    this.el.classList.remove('show', 'cinematic');
   }
 }

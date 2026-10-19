@@ -271,4 +271,4 @@ export function t(key: string, params?: Record<string, string | number>): string
   return s;
 }
 
-export const TIP_KEYS = ['tip.1', 'tip.2', 'tip.3', 'tip.4', 'tip.5', 'tip.6', 'tip.7', 'tip.8', 'tip.9', 'tip.10', 'tip.11'];
+export const TIP_KEYS = ['tip.1', 'tip.2', 'tip.3', 'tip.4', 'tip.5', 'tip.6', 'tip.7', 'tip.8', 'tip.9', 'tip.10', 'tip.11', 'tip.12', 'tip.13'];

@@ -6,6 +6,20 @@
 
 type Step = { semi: number; open: boolean; len: number } | null;
 
+/**
+ * Optional recorded tracks: drop files named <song>_combat.mp3 and/or <song>_calm.mp3
+ * (e.g. hellfront_combat.mp3, siege_combat.mp3) into src/assets/audio/music/ and rebuild.
+ * When a file exists it replaces the procedural band / pad for that song.
+ */
+const FILES = import.meta.glob('../assets/audio/music/*.{mp3,ogg,wav}', { query: '?url', import: 'default', eager: true }) as Record<string, string>;
+function fileFor(song: string, layer: 'combat' | 'calm'): string | null {
+  for (const [path, url] of Object.entries(FILES)) {
+    const name = path.split('/').pop()!.replace(/\.(mp3|ogg|wav)$/, '');
+    if (name === song + '_' + layer) return url;
+  }
+  return null;
+}
+
 interface Section {
   bars: number;
   riff: Step[][]; // one array of 16 steps per bar (cycled)
@@ -138,6 +152,9 @@ export class MusicManager {
   private barInSection = 0;
   private pad: { stop(): void } | null = null;
   private intensity: MusicIntensity = 'off';
+  /** Recorded-track mode for the current song (procedural parts are skipped). */
+  private recorded: { combat: AudioBufferSourceNode | null; calm: AudioBufferSourceNode | null } = { combat: null, calm: null };
+  private cache = new Map<string, Promise<AudioBuffer | null>>();
 
   constructor(private ctx: AudioContext, destination: AudioNode) {
     this.bus = ctx.createGain();
@@ -218,8 +235,45 @@ export class MusicManager {
     this.sectionIdx = 0;
     this.barInSection = 0;
     this.nextTime = this.ctx.currentTime + 0.1;
-    this.timer = window.setInterval(() => this.schedule(), 25);
-    this.startPad();
+    this.stopRecorded();
+    const combatUrl = fileFor(this.songId, 'combat');
+    const calmUrl = fileFor(this.songId, 'calm');
+    if (combatUrl) void this.startRecorded('combat', combatUrl);
+    else this.timer = window.setInterval(() => this.schedule(), 25);
+    if (calmUrl) void this.startRecorded('calm', calmUrl);
+    else this.startPad();
+  }
+
+  private load(url: string): Promise<AudioBuffer | null> {
+    let p = this.cache.get(url);
+    if (!p) {
+      p = fetch(url).then((r) => r.arrayBuffer()).then((b) => this.ctx.decodeAudioData(b)).catch(() => null);
+      this.cache.set(url, p);
+    }
+    return p;
+  }
+
+  private async startRecorded(layer: 'combat' | 'calm', url: string): Promise<void> {
+    const song = this.songId;
+    const buf = await this.load(url);
+    if (!buf || this.songId !== song) return;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(layer === 'combat' ? this.band : this.padGain);
+    src.start();
+    this.recorded[layer] = src;
+  }
+
+  private stopRecorded(): void {
+    for (const k of ['combat', 'calm'] as const) {
+      try {
+        this.recorded[k]?.stop();
+      } catch {
+        /* ignore */
+      }
+      this.recorded[k] = null;
+    }
   }
 
   setIntensity(i: MusicIntensity, fade = 1.6): void {
@@ -232,7 +286,7 @@ export class MusicManager {
       g.gain.linearRampToValueAtTime(v, t + fade);
     };
     ramp(this.band, i === 'combat' ? 1 : 0);
-    ramp(this.padGain, i === 'calm' ? 0.5 : i === 'combat' ? 0.12 : 0);
+    ramp(this.padGain, i === 'calm' ? (this.recorded.calm ? 1 : 0.5) : i === 'combat' ? (this.recorded.calm ? 0 : 0.12) : 0);
     if (i === 'combat') {
       // restart the song from a section start so the drop lands on a downbeat
       this.step = 0;
@@ -245,6 +299,7 @@ export class MusicManager {
     window.setTimeout(() => {
       if (this.intensity === 'off') {
         this.stopScheduler();
+        this.stopRecorded();
         this.pad?.stop();
         this.pad = null;
         this.songId = '';

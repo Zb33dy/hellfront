@@ -55,6 +55,11 @@ export abstract class Enemy {
   stuckT = 0;
   nudgeT = 0;
   hpMul = 1;
+  /** Glory-kill window: staggered enemies freeze and glow; E executes them. */
+  staggerT = 0;
+  staggered = false;
+  /** Siege 'swift' modifier. */
+  speedMul = 1;
 
   constructor(kind: EnemyKind, x: number, z: number, angleDeg: number, hpMul: number) {
     this.def = ENEMIES[kind];

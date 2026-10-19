@@ -1,10 +1,10 @@
 import type { Lang } from './i18n';
 
 export type Action =
-  | 'forward' | 'back' | 'left' | 'right' | 'jump' | 'sprint' | 'crouch' | 'use'
-  | 'weapon1' | 'weapon2' | 'weapon3' | 'weapon4' | 'lastWeapon' | 'grenade' | 'focus' | 'pause';
+  | 'forward' | 'back' | 'left' | 'right' | 'jump' | 'sprint' | 'dash' | 'crouch' | 'use'
+  | 'weapon1' | 'weapon2' | 'weapon3' | 'weapon4' | 'weapon5' | 'lastWeapon' | 'grenade' | 'focus' | 'shop' | 'pause';
 
-export const ACTIONS: Action[] = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'crouch', 'use', 'weapon1', 'weapon2', 'weapon3', 'weapon4', 'lastWeapon', 'grenade', 'focus', 'pause'];
+export const ACTIONS: Action[] = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'dash', 'crouch', 'use', 'weapon1', 'weapon2', 'weapon3', 'weapon4', 'weapon5', 'lastWeapon', 'grenade', 'focus', 'shop', 'pause'];
 
 export const DEFAULT_BINDINGS: Record<Action, string> = {
   forward: 'KeyW',
@@ -14,14 +14,17 @@ export const DEFAULT_BINDINGS: Record<Action, string> = {
   jump: 'Space',
   sprint: 'ShiftLeft',
   crouch: 'KeyC',
+  dash: 'KeyV',
   use: 'KeyE',
   weapon1: 'Digit1',
   weapon2: 'Digit2',
   weapon3: 'Digit3',
   weapon4: 'Digit4',
+  weapon5: 'Digit5',
   lastWeapon: 'KeyZ',
   grenade: 'KeyG',
   focus: 'KeyQ',
+  shop: 'KeyB',
   pause: 'Escape',
 };
 

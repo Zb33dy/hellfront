@@ -70,6 +70,8 @@ const things: ThingDef[] = [
 
   // Causeway
   { kind: 'healthSmall', x: 26, y: 10 },
+  { kind: 'launcher', x: 22.5, y: 13 },
+  { kind: 'rockets', x: 21.5, y: 9 },
   { kind: 'grenades', x: 26, y: 11 },
   { kind: 'shellBox', x: 26, y: 12 },
   { kind: 'executioner', x: 40, y: 11, angle: 270 },

@@ -88,6 +88,13 @@ export class HUD {
   private scopeEl: HTMLElement;
   private slowEl: HTMLElement;
   private bannerEl: HTMLElement;
+  private styleEl: HTMLElement;
+  private styleLetter: HTMLElement;
+  private styleName: HTMLElement;
+  private styleFill: HTMLElement;
+  private styleFeed: HTMLElement;
+  private promptEl: HTMLElement;
+  private scoreEl: HTMLElement;
   private bannerTimer = 0;
   readonly clickEl: HTMLElement;
   readonly viewLayer: HTMLElement;
@@ -121,7 +128,14 @@ export class HUD {
     this.slowEl = h('div', { class: 'slowmo-overlay' });
     this.el.prepend(this.scopeEl, this.slowEl);
     this.bannerEl = h('div', { class: 'round-banner' });
-    this.el.append(this.bannerEl);
+    this.styleLetter = h('b');
+    this.styleName = h('span', { class: 'style-name' });
+    this.styleFill = h('i');
+    this.styleFeed = h('div', { class: 'style-feed' });
+    this.styleEl = h('div', { class: 'style-meter' }, [this.styleLetter, this.styleName, h('div', { class: 'style-track' }, [this.styleFill]), this.styleFeed]);
+    this.promptEl = h('div', { class: 'ctx-prompt' });
+    this.scoreEl = h('div', { class: 'siege-score' });
+    this.el.append(this.bannerEl, this.styleEl, this.promptEl, this.scoreEl);
     this.el.append(cross, this.hitEl, ring, this.msgEl, this.objEl, this.clickEl, this.bossEl, this.focusEl);
 
     const bar = h('div', { class: 'hud-bar' });
@@ -140,7 +154,7 @@ export class HUD {
     c2.append(this.hpNum, label('hud.health'));
     const c3 = cell();
     const arms = h('div', { class: 'arms' });
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 5; i++) {
       const s = h('span', { text: String(i) });
       this.armsEls.push(s);
       arms.append(s);
@@ -167,9 +181,10 @@ export class HUD {
     const [rb, vb] = row('BULL');
     const [rs, vs] = row('SHEL');
     const [rr, vr] = row('RNDS');
+    const [rk, vk] = row('RCKT');
     const [rg, vg] = row('GREN');
-    this.resRows = { bullets: rb, shells: rs, rounds: rr, grenades: rg };
-    this.resVals = { bullets: vb, shells: vs, rounds: vr, grenades: vg };
+    this.resRows = { bullets: rb, shells: rs, rounds: rr, rockets: rk, grenades: rg };
+    this.resVals = { bullets: vb, shells: vs, rounds: vr, rockets: vk, grenades: vg };
     c7.append(table);
     bar.append(c1, c2, c3, c4, c5, c6, c7);
     this.el.append(bar);
@@ -207,7 +222,7 @@ export class HUD {
   }
 
   setReserves(r: Record<AmmoType, number>, max: Record<AmmoType, number>, current: AmmoType | null): void {
-    for (const k of ['bullets', 'shells', 'rounds', 'grenades'] as AmmoType[]) {
+    for (const k of ['bullets', 'shells', 'rounds', 'rockets', 'grenades'] as AmmoType[]) {
       const s = `${r[k]}<b>/${max[k]}</b>`;
       if (this.cache['res' + k] !== s) {
         this.cache['res' + k] = s;
@@ -218,7 +233,7 @@ export class HUD {
   }
 
   setArms(owned: Set<WeaponId>, current: WeaponId): void {
-    const ids: WeaponId[] = ['pistol', 'shotgun', 'chainsword', 'sniper'];
+    const ids: WeaponId[] = ['pistol', 'shotgun', 'chainsword', 'sniper', 'launcher'];
     ids.forEach((id, i) => {
       this.armsEls[i].classList.toggle('owned', owned.has(id));
       this.armsEls[i].classList.toggle('active', current === id);
@@ -247,6 +262,47 @@ export class HUD {
     this.focusEl.classList.toggle('active', active);
     this.focusEl.classList.toggle('ready', frac >= 0.999);
     this.slowEl.classList.toggle('show', active);
+  }
+
+  /** Style rank panel. points 0 hides it. */
+  setStyle(letter: string, name: string, progress: number, visible: boolean, rankIdx: number): void {
+    this.styleEl.classList.toggle('show', visible);
+    if (this.cache.styleL !== letter) {
+      this.cache.styleL = letter;
+      this.styleLetter.textContent = letter;
+      this.styleName.textContent = name;
+      this.styleEl.dataset.rank = String(rankIdx);
+      this.styleLetter.classList.remove('pop');
+      void this.styleLetter.offsetWidth;
+      this.styleLetter.classList.add('pop');
+    }
+    this.styleFill.style.width = (Math.max(0, Math.min(1, progress)) * 100).toFixed(0) + '%';
+  }
+
+  styleBonus(text: string): void {
+    const d = h('div', { text });
+    this.styleFeed.prepend(d);
+    while (this.styleFeed.children.length > 4) this.styleFeed.lastChild!.remove();
+    setTimeout(() => d.classList.add('out'), 1400);
+    setTimeout(() => d.remove(), 1900);
+  }
+
+  /** Small prompt under the crosshair (glory kills, shop). */
+  prompt(text: string | null): void {
+    const v = text ?? '';
+    if (this.cache.prompt === v) return;
+    this.cache.prompt = v;
+    this.promptEl.textContent = v;
+    this.promptEl.classList.toggle('show', !!text);
+  }
+
+  /** Siege score / souls readout. */
+  setScore(text: string | null): void {
+    const v = text ?? '';
+    if (this.cache.score === v) return;
+    this.cache.score = v;
+    this.scoreEl.textContent = v;
+    this.scoreEl.classList.toggle('show', !!text);
   }
 
   /** Big centered announcement (Siege rounds). */

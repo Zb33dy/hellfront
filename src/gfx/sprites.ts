@@ -1,7 +1,7 @@
 import { RawTexture, Texture, type Scene } from '@babylonjs/core';
 import { Pix, glow, type RGBA } from './pixart';
 import { breachCore, executioner, hellbolt, ironclad, warden, type Pose } from './spritesCh23';
-import { boneShard, eruptionMark, grenadePickup, grenadeSprite, roundsBox, sniperPickup, sovereign, warhound, wraith } from './spritesCh45';
+import { boneShard, eruptionMark, grenadePickup, grenadeSprite, launcherPickup, rocketsBox, rocketSprite, roundsBox, sniperPickup, sovereign, warhound, wraith } from './spritesCh45';
 
 // Original procedural pixel-art sprites for enemies, pickups, props and projectiles.
 // Everything is packed into one atlas so all billboards render in a single draw call.
@@ -606,6 +606,9 @@ function buildFrames(): Map<string, { pix: Pix; anchor: 'bottom' | 'center' }> {
   add('grenades', grenadePickup());
   add('grenade0', grenadeSprite(false), 'center');
   add('grenade1', grenadeSprite(true), 'center');
+  add('launcher', launcherPickup());
+  add('rockets', rocketsBox());
+  for (let k = 0; k < 2; k++) add('rocket' + k, rocketSprite(k), 'center');
   return m;
 }
 

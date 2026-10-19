@@ -24,13 +24,16 @@ export const PLAYER = {
   crouchHeight: 0.95,
   crouchEyeDrop: 0.68,
   crouchSpeedMul: 0.5,
+  dashSpeed: 20,
+  dashTime: 0.17,
+  dashCooldown: 0.85,
 } as const;
 
-export type AmmoType = 'bullets' | 'shells' | 'rounds' | 'grenades';
-export type WeaponId = 'pistol' | 'shotgun' | 'chainsword' | 'sniper';
+export type AmmoType = 'bullets' | 'shells' | 'rounds' | 'rockets' | 'grenades';
+export type WeaponId = 'pistol' | 'shotgun' | 'chainsword' | 'sniper' | 'launcher';
 export type KeyColor = 'red' | 'blue' | 'yellow';
 
-export const AMMO_MAX: Record<AmmoType, number> = { bullets: 200, shells: 50, rounds: 30, grenades: 8 };
+export const AMMO_MAX: Record<AmmoType, number> = { bullets: 200, shells: 50, rounds: 30, rockets: 20, grenades: 8 };
 
 export interface HitscanWeaponDef {
   kind: 'hitscan';
@@ -88,7 +91,9 @@ export const GRENADE = { damage: 160, radius: 6.5, fuse: 1.7, speed: 16, cooldow
 /** Q: focus — the world slows down, the marine does not. */
 export const FOCUS = { duration: 5, recharge: 16, worldScale: 0.3, minToStart: 0.15 };
 
-export const WEAPON_SLOTS: WeaponId[] = ['pistol', 'shotgun', 'chainsword', 'sniper'];
+export const WEAPON_SLOTS: WeaponId[] = ['pistol', 'shotgun', 'chainsword', 'sniper', 'launcher'];
+/** Rocket launcher projectile. */
+export const ROCKET = { speed: 32, damage: 140, radius: 5.5, interval: 0.85 };
 export const WEAPON_SWITCH_TIME = 0.22;
 
 export type EnemyKind = 'zombieman' | 'imp' | 'pinky' | 'ironclad' | 'warden' | 'executioner' | 'core' | 'wraith' | 'sovereign' | 'warhound';
@@ -222,6 +227,8 @@ export const PICKUPS = {
   rounds: 6,
   sniperRounds: 10,
   grenades: 2,
+  rockets: 3,
+  launcherRockets: 6,
   startBullets: 50,
 } as const;
 

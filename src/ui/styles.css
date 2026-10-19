@@ -453,7 +453,7 @@ html, body {
   letter-spacing: 1px;
   text-shadow: 1px 1px 0 #000;
 }
-.arms { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(var(--px) * 2); }
+.arms { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(var(--px) * 2); }
 .arms span {
   font-family: var(--font-head);
   font-size: calc(var(--hud-h) * 0.17);
@@ -482,8 +482,8 @@ html, body {
 .keys i.yellow.have { background: #e6c21c; color: #fd3; }
 .ammo-table {
   font-family: var(--font-head);
-  font-size: calc(var(--hud-h) * 0.12);
-  line-height: 1.8;
+  font-size: calc(var(--hud-h) * 0.105);
+  line-height: 1.5;
   color: #d9b85a;
   text-shadow: 1px 1px 0 #000;
   width: 86%;
@@ -755,3 +755,52 @@ html, body {
   font-family: var(--font-head); font-size: clamp(12px, 1.4vw, 18px);
   color: #ffd2a0; letter-spacing: 3px; text-shadow: 2px 2px 0 #000;
 }
+
+.style-meter {
+  position: absolute; right: 22px; top: 34%;
+  width: 230px; text-align: right; pointer-events: none;
+  opacity: 0; transform: translateX(20px); transition: opacity .3s, transform .3s;
+}
+.style-meter.show { opacity: 1; transform: none; }
+.style-meter b {
+  display: block; font-family: var(--font-head); font-size: 64px; line-height: 1;
+  color: #c9c3b6; text-shadow: 4px 4px 0 #000;
+}
+.style-meter b.pop { animation: stylepop .35s; }
+@keyframes stylepop { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }
+.style-meter[data-rank="2"] b { color: #9fd8ff; }
+.style-meter[data-rank="3"] b { color: #ffd24a; text-shadow: 4px 4px 0 #000, 0 0 16px #ffae00; }
+.style-meter[data-rank="4"] b, .style-meter[data-rank="5"] b { color: #ff7a2a; text-shadow: 4px 4px 0 #000, 0 0 20px #ff3a0a; }
+.style-meter[data-rank="6"] b { color: #ff2a2a; text-shadow: 4px 4px 0 #000, 0 0 26px #ff0000; animation: sss 0.6s infinite alternate; }
+@keyframes sss { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+.style-name { display: block; font-family: var(--font-head); font-size: 11px; letter-spacing: 2px; color: #ffd2a0; text-shadow: 2px 2px 0 #000; margin: 4px 0 6px; }
+.style-track { height: 6px; background: rgba(0,0,0,.6); border: 1px solid #3a1a10; }
+.style-track i { display: block; height: 100%; background: linear-gradient(90deg, #ff3a0a, #ffd24a); }
+.style-feed { margin-top: 6px; font-family: var(--font-head); font-size: 10px; color: #fff; text-shadow: 2px 2px 0 #000; letter-spacing: 1px; }
+.style-feed div { transition: opacity .5s; margin-top: 3px; }
+.style-feed div.out { opacity: 0; }
+.ctx-prompt {
+  position: absolute; left: 50%; top: calc(50% + 36px); transform: translateX(-50%);
+  font-family: var(--font-head); font-size: 13px; color: #ffcf6a; letter-spacing: 2px;
+  text-shadow: 2px 2px 0 #000, 0 0 10px #ff6a00; pointer-events: none; opacity: 0; transition: opacity .15s;
+}
+.ctx-prompt.show { opacity: 1; animation: promptpulse .7s infinite alternate; }
+@keyframes promptpulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+.siege-score {
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%); pointer-events: none; display: none; white-space: nowrap;
+  font-family: var(--font-head); font-size: 12px; color: #ffd2a0; letter-spacing: 2px; text-shadow: 2px 2px 0 #000;
+}
+.siege-score.show { display: block; }
+
+.shop-box { width: min(860px, 92vw); padding: 24px 28px; }
+.shop-souls { font-family: var(--font-head); font-size: 14px; color: #ffcf6a; letter-spacing: 2px; margin: 4px 0 16px; text-shadow: 2px 2px 0 #000; }
+.shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.shop-grid .btn { font-size: 13px; text-align: left; }
+.shop-grid .btn small { display: block; font-size: 16px; opacity: .8; margin-top: 4px; }
+
+#chapter.cinematic { background: #000; animation: cinefade 1.2s; }
+@keyframes cinefade { from { background: rgba(0,0,0,0); } to { background: #000; } }
+#chapter.cinematic .complete-box { background: transparent; box-shadow: none; border: 0; }
+#chapter.cinematic .chapter-body { font-size: clamp(22px, 2.2vw, 32px); line-height: 1.45; max-width: 900px; text-shadow: 0 0 12px rgba(255,80,20,.25); }
+.chapter-body .caret { color: #ff6a2a; animation: caret .6s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }

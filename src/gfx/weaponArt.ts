@@ -121,6 +121,25 @@ function sniper(state: 'idle' | 'fire' | 'pump1' | 'pump2'): Pix {
   return p;
 }
 
+function launcher(fire: boolean): Pix {
+  const p = new Pix(VM_W, VM_H, 7);
+  const dy = fire ? 9 : 0;
+  // shoulder-fired tube seen from behind, offset to the right
+  arm(p, 124, 114, 108, 92 + dy, 10);
+  p.ell(106, 90 + dy, 12, 9, GLOVE, 0.5);
+  p.poly([[78, 100 + dy], [112, 100 + dy], [104, 30 + dy], [86, 30 + dy]], [70, 78, 58]);
+  p.poly([[82, 96 + dy], [108, 96 + dy], [101, 34 + dy], [89, 34 + dy]], [92, 102, 76]);
+  p.ell(95, 30 + dy, 10, 5, [36, 40, 30]);
+  p.ell(95, 30 + dy, 6, 3, fire ? glow(255, 180, 80, 1) : [14, 14, 16]);
+  for (let k = 0; k < 4; k++) p.rect(84 + k * 1, 50 + k * 14 + dy, 22 - k * 2, 2, [200, 170, 40]);
+  p.rect(110, 54 + dy, 8, 10, [40, 40, 44]);
+  p.rect(112, 56 + dy, 4, 4, glow(255, 40, 30, 0.9));
+  arm(p, 30, 114, 74, 80 + dy, 9);
+  p.ell(82, 76 + dy, 11, 8, GLOVE, 0.5);
+  p.finish([14, 12, 12]);
+  return p;
+}
+
 function flash(big: boolean): Pix {
   const p = new Pix(48, 40, big ? 5 : 4);
   const cx = 24, cy = 24;
@@ -140,6 +159,7 @@ export interface WeaponFrames {
   shotgun: { idle: HTMLCanvasElement; fire: HTMLCanvasElement; pump1: HTMLCanvasElement; pump2: HTMLCanvasElement };
   chainsword: { idle0: HTMLCanvasElement; idle1: HTMLCanvasElement; swing0: HTMLCanvasElement; swing1: HTMLCanvasElement };
   sniper: { idle: HTMLCanvasElement; fire: HTMLCanvasElement; pump1: HTMLCanvasElement; pump2: HTMLCanvasElement };
+  launcher: { idle: HTMLCanvasElement; fire: HTMLCanvasElement };
   flashSmall: HTMLCanvasElement;
   flashBig: HTMLCanvasElement;
 }
@@ -161,6 +181,7 @@ export function weaponFrames(): WeaponFrames {
       idle: sniper('idle').toCanvas(), fire: sniper('fire').toCanvas(),
       pump1: sniper('pump1').toCanvas(), pump2: sniper('pump2').toCanvas(),
     },
+    launcher: { idle: launcher(false).toCanvas(), fire: launcher(true).toCanvas() },
     flashSmall: flash(false).toCanvas(),
     flashBig: flash(true).toCanvas(),
   };

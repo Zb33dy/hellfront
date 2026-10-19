@@ -7,6 +7,7 @@ import { PauseScreen, type PauseCallbacks } from './pause';
 import { DeathScreen, type DeathCallbacks } from './deathScreen';
 import { ChapterEndScreen, LevelCompleteScreen } from './levelComplete';
 import { LoadingScreen } from './loading';
+import { ShopScreen } from './shop';
 import { HUD } from './hud';
 import { SubtitleBar } from './subtitleBar';
 import { ViewModel } from './viewModel';
@@ -19,6 +20,7 @@ export interface UICallbacks extends MenuCallbacks {
   onChapterMenu(): void;
   onChapterNext(): void;
   onLoadingConfirm(): void;
+  onShopClose(): void;
 }
 
 /** Owns every DOM screen and routes keyboard navigation to whichever one is on top. */
@@ -30,6 +32,7 @@ export class UIManager {
   readonly complete: LevelCompleteScreen;
   readonly chapter: ChapterEndScreen;
   readonly loading: LoadingScreen;
+  readonly shop: ShopScreen;
   readonly hud: HUD;
   readonly subtitles: SubtitleBar;
   readonly viewModel: ViewModel;
@@ -54,7 +57,8 @@ export class UIManager {
     this.complete = new LevelCompleteScreen(sound, cb.onCompleteContinue);
     this.chapter = new ChapterEndScreen(sound, cb.onChapterMenu, cb.onChapterNext);
     this.loading = new LoadingScreen();
-    root.append(this.hud.el, this.subtitles.el, this.debug.el, this.menu.el, this.pause.el, this.death.el, this.complete.el, this.chapter.el, this.loading.el, this.settings.el);
+    this.shop = new ShopScreen(sound, cb.onShopClose);
+    root.append(this.hud.el, this.subtitles.el, this.debug.el, this.menu.el, this.pause.el, this.death.el, this.complete.el, this.chapter.el, this.loading.el, this.settings.el, this.shop.el);
 
     window.addEventListener('keydown', (e) => {
       if (this.loading.el.classList.contains('show')) {
@@ -87,6 +91,7 @@ export class UIManager {
   currentNav(): MenuNav | null {
     if (this.settings.visible) return this.settings.nav;
     const vis = (el: HTMLElement) => el.classList.contains('show');
+    if (vis(this.shop.el)) return this.shop.nav;
     if (vis(this.pause.el)) return this.pause.nav;
     if (vis(this.death.el)) return this.death.nav;
     if (vis(this.complete.el)) return this.complete.nav;
@@ -102,6 +107,7 @@ export class UIManager {
     this.death.hide();
     this.complete.hide();
     this.chapter.hide();
+    this.shop.hide();
     this.loading.hide();
   }
 
