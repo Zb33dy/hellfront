@@ -15,7 +15,19 @@ const POOL: { kind: EnemyKind; cost: number; from: number; weight: number }[] = 
   { kind: 'wraith', cost: 3, from: 3, weight: 3 },
   { kind: 'ironclad', cost: 4, from: 4, weight: 2 },
   { kind: 'executioner', cost: 5, from: 6, weight: 2 },
+  // the heretic host joins the waves once the Sorcerer has shown himself
+  { kind: 'boltgunner', cost: 4, from: 16, weight: 3 },
+  { kind: 'hellflamer', cost: 4, from: 16, weight: 3 },
+  { kind: 'terminator', cost: 7, from: 17, weight: 1 },
 ];
+
+/** Lobby: starting rounds on offer (every 5 reached is unlocked; 15 — the Sorcerer — is always open). */
+export function siegeStartOptions(): number[] {
+  const best = siegeBest();
+  const out = [1];
+  for (let r = 5; r <= Math.max(15, Math.floor(best / 5) * 5); r += 5) if (r <= best || r === 15) out.push(r);
+  return out;
+}
 
 export type Modifier = 'swift' | 'bladeOnly' | 'darkness' | 'armored' | 'glass' | 'frenzy';
 const MODIFIERS: Modifier[] = ['swift', 'bladeOnly', 'darkness', 'armored', 'glass', 'frenzy'];
@@ -67,7 +79,19 @@ export class SiegeController {
   private spawned = 0;
   readonly best = siegeBest();
 
-  constructor(private L: LevelScene) {}
+  /** Set by the lobby before the level loads. */
+  static startRound = 1;
+
+  constructor(private L: LevelScene) {
+    const start = Math.max(1, SiegeController.startRound);
+    this.round = start - 1;
+    // late starts come with souls to spend
+    this.souls = (start - 1) * 45;
+  }
+
+  get sorcererRound(): boolean {
+    return this.round > 0 && this.round % 15 === 0;
+  }
 
   get bossRound(): boolean {
     return this.round > 0 && this.round % 5 === 0;
@@ -84,6 +108,7 @@ export class SiegeController {
   start(): void {
     this.L.ui.hud.banner(t('siege.title'), t('siege.get'));
     this.L.hooks.voice('vs_start');
+    this.L.hooks.chooseAbility([]);
   }
 
   private beginRound(): void {
@@ -103,7 +128,11 @@ export class SiegeController {
     }
     const L = this.L;
     if (this.modifier === 'darkness') L.lights.fogRange = [4, 26];
-    if (this.bossRound) {
+    if (this.sorcererRound) {
+      L.ui.hud.banner(t('siege.round', { n: this.round }), t('siege.sorcerer'));
+      L.hooks.voice('s_intro');
+      L.sound('teleport', null, { pitch: 0.4, volume: 1.4 });
+    } else if (this.bossRound) {
       L.ui.hud.banner(t('siege.round', { n: this.round }), t('siege.hounds'));
       L.hooks.voice('vs_hound');
       L.sound('pinky_charge', null, { pitch: 0.5, volume: 1.2 });
@@ -114,6 +143,7 @@ export class SiegeController {
   }
 
   private compose(): EnemyKind[] {
+    if (this.sorcererRound) return ['sorcerer', 'boltgunner', 'hellflamer'];
     if (this.bossRound) return Array.from({ length: this.round / 5 }, () => 'warhound' as EnemyKind);
     let budget = 5 + this.round * 3;
     const out: EnemyKind[] = [];
@@ -179,7 +209,7 @@ export class SiegeController {
     if (this.queue.length && this.spawnT <= 0 && L.enemies.filter((e) => e.alive).length < maxAlive) {
       const kind = this.queue.shift()!;
       const gate = this.pickGate();
-      const hp = kind === 'warhound' ? L.diff.enemyHealth * (1 + 0.35 * (this.round / 5 - 1)) : this.hpMul;
+      const hp = kind === 'sorcerer' ? L.diff.enemyHealth * (1 + 0.25 * (this.round / 15 - 1)) : kind === 'warhound' ? L.diff.enemyHealth * (1 + 0.35 * (this.round / 5 - 1)) : this.hpMul;
       const e = L.summon(kind, gate[0] * CELL + rand(-0.6, 0.6), gate[1] * CELL + rand(-0.6, 0.6), { hpMul: hp, tracked: false });
       if (e && this.modifier === 'swift') e.speedMul = 1.35;
       this.spawned++;
@@ -211,7 +241,10 @@ export class SiegeController {
     p.health = Math.min(p.maxHealth, p.health + (this.bossRound ? 50 : 15));
     if (this.bossRound) p.armor = Math.min(PLAYER.maxArmor, p.armor + 50);
     L.refreshPickups();
-    L.ui.hud.banner(t('siege.cleared', { n: this.round }), this.bossRound ? t('siege.houndDown') : t('siege.bonus', { n: bonus }));
+    L.ui.hud.banner(t('siege.cleared', { n: this.round }), this.sorcererRound ? t('siege.sorcererDown') : this.bossRound ? t('siege.houndDown') : t('siege.bonus', { n: bonus }));
+    if (this.sorcererRound) L.hooks.voice('s_death');
+    // every fifth round: pick an ability again
+    if (this.round % 5 === 0) window.setTimeout(() => L.hooks.chooseAbility([]), 1600);
     L.sound('level_complete', null, { volume: 0.6 });
     L.clearDead();
   }

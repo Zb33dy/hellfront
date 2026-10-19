@@ -3,20 +3,41 @@ import { FIREBALL } from '../core/config';
 import type { SoundHandle } from '../audio/audioManager';
 import type { SpriteBatch } from '../gfx/spriteBatch';
 import { SPRITES } from '../gfx/sprites';
-import type { GameCtx } from '../scenes/context';
+import type { GameCtx, HitOpts } from '../scenes/context';
 import type { Enemy } from './enemy';
 
-interface Fireball {
+export interface ShotOpts {
+  speed?: number;
+  /** Legacy presets. */
+  bolt?: boolean;
+  shard?: boolean;
+  /** Sprite base name (frames <name>0 / <name>1). */
+  sprite?: string;
+  scale?: number;
+  color?: Color3;
+  /** Homing: turn rate (rad/s) toward the player. */
+  homing?: number;
+  life?: number;
+  hit?: HitOpts;
+  /** Silent (rapid-fire bolts would otherwise stack loops). */
+  quiet?: boolean;
+}
+
+interface Ball {
   pos: Vector3;
   vel: Vector3;
   owner: Enemy | null;
   damage: number;
   life: number;
-  loop: SoundHandle;
+  loop: SoundHandle | null;
   alive: boolean;
   t: number;
-  bolt: boolean;
-  shard: boolean;
+  sprite: string;
+  scale: number;
+  color: Color3;
+  homing: number;
+  speed: number;
+  hit: HitOpts;
 }
 
 interface Impact {
@@ -24,26 +45,33 @@ interface Impact {
   t: number;
 }
 
-/** Imp fireballs: slow enough to strafe, lit, with trail particles and a looping crackle. */
+/** Monster projectiles: fireballs, hellbolts, bone shards, heretic bolts and homing orbs. */
 export class Projectiles {
-  private balls: Fireball[] = [];
+  private balls: Ball[] = [];
   private impacts: Impact[] = [];
 
-  fireball(from: Vector3, dir: Vector3, owner: Enemy | null, damage: number, ctx: GameCtx, opts: { speed?: number; bolt?: boolean; shard?: boolean } = {}): void {
-    const b: Fireball = {
+  fireball(from: Vector3, dir: Vector3, owner: Enemy | null, damage: number, ctx: GameCtx, opts: ShotOpts = {}): void {
+    const sprite = opts.sprite ?? (opts.bolt ? 'bolt' : opts.shard ? 'shard' : 'fireball');
+    const color = opts.color ?? (opts.bolt ? new Color3(0.7, 0.3, 1) : opts.shard ? new Color3(0.5, 1, 0.8) : new Color3(1, 0.5, 0.15));
+    const speed = opts.speed ?? FIREBALL.speed;
+    const b: Ball = {
       pos: from.clone(),
-      vel: dir.normalizeToNew().scale(opts.speed ?? FIREBALL.speed),
+      vel: dir.normalizeToNew().scale(speed),
       owner,
       damage,
-      life: FIREBALL.life,
-      loop: ctx.sound('fireball_fly', from, { loop: true, pitch: opts.shard ? 1.8 : opts.bolt ? 0.7 : 1, volume: opts.shard ? 0.5 : 1 }),
+      life: opts.life ?? FIREBALL.life,
+      loop: opts.quiet ? null : ctx.sound('fireball_fly', from, { loop: true, pitch: opts.shard ? 1.8 : opts.bolt ? 0.7 : opts.homing ? 0.5 : 1, volume: opts.shard ? 0.5 : 1 }),
       alive: true,
       t: 0,
-      bolt: !!opts.bolt,
-      shard: !!opts.shard,
+      sprite,
+      scale: opts.scale ?? (opts.bolt ? 1.4 : opts.shard ? 1.1 : 1.2),
+      color,
+      homing: opts.homing ?? 0,
+      speed,
+      hit: opts.hit ?? { source: owner ?? undefined },
     };
     this.balls.push(b);
-    ctx.lights.addFx(b.pos, b.bolt ? new Color3(0.7, 0.3, 1) : b.shard ? new Color3(0.5, 1, 0.8) : new Color3(1, 0.5, 0.15), b.shard ? 0.9 : 1.8, b.shard ? 4 : 7, undefined, () => (b.alive ? b.pos : null));
+    ctx.lights.addFx(b.pos, color, opts.shard || opts.quiet ? 0.9 : 1.8, opts.shard || opts.quiet ? 4 : 7, undefined, () => (b.alive ? b.pos : null));
   }
 
   update(dt: number, ctx: GameCtx): void {
@@ -51,6 +79,15 @@ export class Projectiles {
       const b = this.balls[i];
       b.life -= dt;
       b.t += dt;
+      if (b.homing > 0 && !ctx.player.dead) {
+        // steer toward where the player is now (slow orbs: dodge with cover or a timed jump)
+        const to = ctx.player.pos.add(new Vector3(0, 1, 0)).subtract(b.pos).normalize();
+        const cur = b.vel.normalizeToNew();
+        const ang = Math.acos(Math.max(-1, Math.min(1, Vector3.Dot(cur, to))));
+        const k = ang > 1e-4 ? Math.min(1, (b.homing * dt) / ang) : 0;
+        const nd = cur.scale(1 - k).add(to.scale(k)).normalize();
+        b.vel.copyFrom(nd.scale(b.speed));
+      }
       const step = b.vel.scale(dt);
       const len = step.length();
       const dir = step.scale(1 / Math.max(len, 1e-6));
@@ -63,7 +100,7 @@ export class Projectiles {
         if (!p.dead && dx * dx + dz * dz < (p.radius + FIREBALL.radius) ** 2 && q.y > p.pos.y - 0.1 && q.y < p.pos.y + p.height + 0.1) hitPlayer = true;
       }
       if (hitPlayer) {
-        ctx.damagePlayer(b.damage, b.pos.subtract(b.vel), 'fireball');
+        ctx.damagePlayer(b.damage, b.pos.subtract(b.vel), 'fireball', b.hit);
         this.explode(b, ctx);
         this.balls.splice(i, 1);
         continue;
@@ -94,7 +131,7 @@ export class Projectiles {
         continue;
       }
       b.pos.addInPlace(step);
-      b.loop.setPosition(b.pos);
+      b.loop?.setPosition(b.pos);
       if (Math.random() < 0.7) ctx.particles.emit('trail', b.pos, b.vel.scale(-0.05), 2, 0.4);
     }
     for (let i = this.impacts.length - 1; i >= 0; i--) {
@@ -103,19 +140,24 @@ export class Projectiles {
     }
   }
 
-  private explode(b: Fireball, ctx: GameCtx): void {
+  private explode(b: Ball, ctx: GameCtx): void {
     b.alive = false;
-    b.loop.stop(0.05);
-    ctx.sound('fireball_impact', b.pos);
+    b.loop?.stop(0.05);
+    if (!b.loop) {
+      // rapid-fire bolts / flame puffs: a small, silent pop
+      ctx.particles.emit(b.sprite === 'flame' ? 'fire' : 'sparks', b.pos, new Vector3(0, 1, 0), 3, 0.4, 0.6);
+      return;
+    }
+    ctx.sound('fireball_impact', b.pos, { volume: b.loop ? 1 : 0.5 });
     ctx.particles.emit('fire', b.pos, new Vector3(0, 1, 0), 14, 1, 0.5);
     ctx.particles.emit('sparks', b.pos, new Vector3(0, 1, 0), 10, 1);
-    ctx.lights.addFx(b.pos, new Color3(1, 0.55, 0.2), 3, 8, 0.35);
+    ctx.lights.addFx(b.pos, b.color, 3, 8, 0.35);
     this.impacts.push({ pos: b.pos.clone(), t: 0 });
   }
 
   draw(batch: SpriteBatch): void {
     const bright: [number, number, number] = [1, 1, 1];
-    for (const b of this.balls) batch.add(SPRITES[(b.bolt ? 'bolt' : b.shard ? 'shard' : 'fireball') + (Math.floor(b.t * 12) % 2)], b.pos.x, b.pos.y, b.pos.z, bright, { full: true, scale: b.bolt ? 1.4 : b.shard ? 1.1 : 1.2, depthBias: 0 });
+    for (const b of this.balls) batch.add(SPRITES[b.sprite + (Math.floor(b.t * 12) % 2)], b.pos.x, b.pos.y, b.pos.z, bright, { full: true, scale: b.scale, depthBias: 0 });
     for (const im of this.impacts) {
       const f = Math.min(2, Math.floor(im.t / 0.1));
       batch.add(SPRITES[`fireImpact${f}`], im.pos.x, im.pos.y, im.pos.z, bright, { full: true, scale: 1.4, depthBias: 0.3 });
@@ -123,7 +165,7 @@ export class Projectiles {
   }
 
   clear(): void {
-    this.balls.forEach((b) => b.loop.stop(0));
+    this.balls.forEach((b) => b.loop?.stop(0));
     this.balls.length = 0;
     this.impacts.length = 0;
   }

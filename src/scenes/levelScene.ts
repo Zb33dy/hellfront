@@ -1,5 +1,5 @@
 import { Color3, Color4, FreeCamera, Scene, Vector3, type Engine } from '@babylonjs/core';
-import { CELL, DIFFICULTY, ENEMIES, PLAYER, AMMO_MAX, FOCUS, GRENADE, type Difficulty, type EnemyKind, type HitscanWeaponDef, type MeleeWeaponDef, type WeaponId } from '../core/config';
+import { CELL, DIFFICULTY, ENEMIES, PLAYER, AMMO_MAX, FOCUS, GRENADE, FLAMER, type AmmoType, type Difficulty, type EnemyKind, type HitscanWeaponDef, type MeleeWeaponDef, type WeaponId } from '../core/config';
 import type { Input } from '../core/input';
 import { t } from '../core/i18n';
 import { rand } from '../core/util';
@@ -38,7 +38,10 @@ import { Wraith } from '../entities/wraith';
 import { Sovereign } from '../entities/sovereign';
 import { Warhound } from '../entities/warhound';
 import { SiegeController } from './siege';
+import { Boltgunner, Hellflamer, SoulTerminator } from '../entities/heretics';
+import { Sorcerer } from '../entities/sorcerer';
 import { StyleMeter, type KillTag } from './style';
+import { AbilityController } from './abilities';
 import type { PlayerState } from '../entities/player';
 import { Projectiles } from '../entities/projectile';
 import { Grenades } from '../entities/grenade';
@@ -47,7 +50,7 @@ import { Barrel, type Prop } from '../entities/barrel';
 import { WeaponSystem } from '../weapons/weaponSystem';
 import type { UIManager } from '../ui/uiManager';
 import type { LevelStats } from '../ui/levelComplete';
-import type { DamageKind, GameCtx } from './context';
+import type { DamageKind, GameCtx, HitOpts } from './context';
 
 export interface LevelHooks {
   onDeath(): void;
@@ -56,6 +59,10 @@ export interface LevelHooks {
   voice(id: string): void;
   /** Siege: open the intermission shop. */
   openShop(): void;
+  /** Pause and let the player equip one of these abilities. */
+  chooseAbility(ids: string[]): void;
+  /** Battle Test spawn / options menu. */
+  openBattleMenu(): void;
 }
 
 function makeEnemy(kind: EnemyKind, x: number, z: number, angle: number, hpMul: number): Enemy {
@@ -70,10 +77,14 @@ function makeEnemy(kind: EnemyKind, x: number, z: number, angle: number, hpMul: 
     case 'wraith': return new Wraith(x, z, angle, hpMul);
     case 'sovereign': return new Sovereign(x, z, angle, hpMul);
     case 'warhound': return new Warhound(x, z, angle, hpMul);
+    case 'boltgunner': return new Boltgunner(x, z, angle, hpMul);
+    case 'hellflamer': return new Hellflamer(x, z, angle, hpMul);
+    case 'terminator': return new SoulTerminator(x, z, angle, hpMul);
+    case 'sorcerer': return new Sorcerer(x, z, angle, hpMul);
   }
 }
 
-const PICKUP_KINDS = new Set<string>(['healthSmall', 'healthLarge', 'armor', 'bulletClip', 'bulletBox', 'shells', 'shellBox', 'keyRed', 'keyBlue', 'keyYellow', 'shotgun', 'chainsword', 'sniper', 'rounds', 'grenades', 'launcher', 'rockets']);
+const PICKUP_KINDS = new Set<string>(['healthSmall', 'healthLarge', 'armor', 'bulletClip', 'bulletBox', 'shells', 'shellBox', 'keyRed', 'keyBlue', 'keyYellow', 'shotgun', 'chainsword', 'sniper', 'rounds', 'grenades', 'launcher', 'rockets', 'bolter', 'bolts', 'flamer', 'fuel']);
 
 export class LevelScene implements GameCtx {
   readonly scene: Scene;
@@ -83,9 +94,15 @@ export class LevelScene implements GameCtx {
   readonly projectiles = new Projectiles();
   readonly grenades = new Grenades();
   readonly rockets = new Rockets();
-  /** Focus (bullet time) meter 0..1 and whether it is running. */
-  focus = 1;
+  /** Tutorial / gallery / battle test: infinite ammo and an inspect panel. */
+  get sandbox(): boolean {
+    return this.data.id === 'tutorial' || this.data.id === 'gallery' || this.data.id === 'battle';
+  }
+  godMode = false;
+
+  /** True while the focus ability slows the world. */
   focusOn = false;
+  readonly ability: AbilityController = new AbilityController(this);
   focusDuration: number = FOCUS.duration;
   private grenadeCD = 0;
   private zoom = 0;
@@ -228,6 +245,10 @@ export class LevelScene implements GameCtx {
         if (lava) this.particles.emit('fire', this.player.pos.add(new Vector3(0, 0.2, 0)), new Vector3(0, 1, 0), 8, 0.6);
       },
       onJump: () => {},
+      onParry: () => {
+        this.sound('chainsword_swing', null, { pitch: 1.4, volume: 0.7 });
+        this.ui.viewModel.parry();
+      },
       onDash: () => {
         this.sound('fireball_fly', null, { pitch: 2.2, volume: 0.5 });
         this.dashFov = 1;
@@ -290,6 +311,7 @@ export class LevelScene implements GameCtx {
     e.pos.y = this.world.groundAt(x, z, e.radius, 10, 20);
     e.spawn.y = e.pos.y;
     if (th.wave && !th.awake) e.setState('dormant');
+    if (th.frozen) e.frozen = true;
     if (e instanceof Sovereign) e.onPhase2 = () => this.hooks.voice('v5_phase');
     this.enemies.push(e);
   }
@@ -303,7 +325,7 @@ export class LevelScene implements GameCtx {
       return;
     }
     const l = this.data.startLoadout;
-    p.applyState({ health: l.health, armor: l.armor, ammo: { bullets: l.bullets, shells: l.shells, rounds: l.rounds ?? 0, rockets: l.rockets ?? 0, grenades: l.grenades ?? 0 }, weapons: [...l.weapons], keys: [] });
+    p.applyState({ health: l.health, armor: l.armor, ammo: { bullets: l.bullets, shells: l.shells, rounds: l.rounds ?? 0, rockets: l.rockets ?? 0, bolts: 0, fuel: 0, grenades: l.grenades ?? 0 }, weapons: [...l.weapons], keys: [] });
   }
 
   summon(kind: EnemyKind, x: number, z: number, opts: { hpMul?: number; tracked?: boolean } = {}): Enemy | null {
@@ -332,11 +354,73 @@ export class LevelScene implements GameCtx {
     return e;
   }
 
-  private setFocus(on: boolean): void {
-    if (on === this.focusOn) return;
-    this.focusOn = on;
-    this.audio.play('teleport', { pitch: on ? 0.45 : 0.8, volume: 0.6 });
-    if (on) this.ui.hud.flash('gold', 0.15);
+  private parrySuccess(src: Enemy | null, from: Vector3): void {
+    const p = this.player;
+    p.parryT = 0;
+    p.parryCD = 0;
+    p.invulnT = Math.max(p.invulnT, 0.35);
+    const at = src ? src.eye : from;
+    this.sound('impact_metal', at, { pitch: 0.55, volume: 1.4 });
+    this.sound('chainsword_hit', at, { pitch: 1.3, volume: 0.7 });
+    this.particles.emit('sparks', at, new Vector3(0, 1, 0), 30, 1.6);
+    this.lights.addFx(at, new Color3(0.4, 0.7, 1), 3, 8, 0.25);
+    this.ui.hud.flash('gold', 0.3);
+    this.shake.add(0.35);
+    this.style.kill('parry', []);
+    this.style.feed.length = 0;
+    this.ui.hud.styleBonus(t('style.tag.parry'));
+    if (src && src.alive) {
+      src.staggerT = Math.max(src.staggerT, src.def.bossName ? 1.2 : 1.6);
+      src.setState('pain');
+      this.gunStrikeTarget = src;
+      this.gunStrikeT = 1.8;
+    }
+  }
+
+  /** Counter after a parry: point-blank shot that hits like a truck. */
+  private gunStrike(e: Enemy): void {
+    const p = this.player;
+    const dir = new Vector3(e.pos.x - p.pos.x, 0, e.pos.z - p.pos.z).normalize();
+    p.yaw = Math.atan2(dir.x, dir.z);
+    p.invulnT = Math.max(p.invulnT, 0.5);
+    this.gunStrikeTarget = null;
+    this.sound('shotgun_fire', null, { pitch: 0.6, volume: 1.4 });
+    this.sound('barrel_explode', e.pos, { pitch: 1.4, volume: 0.6 });
+    this.muzzleFlash(true);
+    this.shake.add(0.7);
+    this.particles.emit('blood', e.eye, dir, 30, 1);
+    this.damageEnemy(e, e.def.bossName ? 220 : Math.max(220, e.hp + 1), dir, 'blast', e.eye);
+  }
+
+  /** Gallery: what the player is looking at (monster or weapon on display). */
+  private inspectTarget(): { title: string; body: string } | null {
+    const p = this.player;
+    const f = p.forward;
+    let best: { title: string; body: string } | null = null;
+    let bestDot = 0.96;
+    const consider = (pos: Vector3, key: string) => {
+      const to = pos.subtract(p.eye);
+      const d = to.length();
+      if (d > 26 || d < 0.5) return;
+      const dot = Vector3.Dot(to.scale(1 / d), f);
+      if (dot < bestDot) return;
+      bestDot = dot;
+      best = { title: t(key), body: t(key + '.d') };
+    };
+    for (const e of this.enemies) if (e.frozen) consider(e.eye, 'enemy.' + e.kind);
+    if (this.data.id === 'gallery') for (const k of this.pickups) if (!k.taken) consider(k.pos.add(new Vector3(0, 0.4, 0)), 'item.' + k.kind);
+    return best;
+  }
+
+  /** Battle Test: spawn a monster in front of the player. */
+  spawnInFront(kind: EnemyKind): void {
+    const p = this.player;
+    const f = new Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw));
+    this.summon(kind, p.pos.x + f.x * 12, p.pos.z + f.z * 12, { tracked: false });
+  }
+
+  killAll(): void {
+    for (const e of this.enemies) if (e.alive && !e.frozen) this.damageEnemy(e, 99999, new Vector3(0, 1, 0), 'blast');
   }
 
   /** A staggered monster close in front of the player, if any. */
@@ -347,7 +431,7 @@ export class LevelScene implements GameCtx {
     let best: Enemy | null = null;
     let bd = 3.8;
     for (const e of this.enemies) {
-      if (!e.alive || e.staggerT <= 0) continue;
+      if (!e.alive || e.staggerT <= 0 || !e.staggered) continue;
       const dx = e.pos.x - p.pos.x, dz = e.pos.z - p.pos.z;
       const d = Math.hypot(dx, dz) - e.radius;
       if (d > bd) continue;
@@ -374,13 +458,14 @@ export class LevelScene implements GameCtx {
     this.shake.add(0.6);
     this.ui.hud.flash('gold', 0.25);
     this.gloryPending = true;
+    this.ability.onExecute();
     this.damageEnemy(e, e.hp + 9999, dir, 'saw', e.eye);
     this.gloryPending = false;
     // the reward: health plus ammo for what you are holding
     this.spawnDrop('healthSmall', e.pos);
     this.spawnDrop('healthSmall', e.pos.add(new Vector3(0.4, 0, 0.3)));
     const ammo = this.weapons.ammoType;
-    const map: Record<string, PickupKind> = { bullets: 'bulletClip', shells: 'shells', rounds: 'rounds', grenades: 'grenades', rockets: 'rockets' };
+    const map: Record<string, PickupKind> = { bullets: 'bulletClip', shells: 'shells', rounds: 'rounds', grenades: 'grenades', rockets: 'rockets', bolts: 'bolts', fuel: 'fuel' };
     this.spawnDrop(ammo ? map[ammo] ?? 'shells' : 'shells', e.pos.add(new Vector3(-0.4, 0, 0.3)));
   }
 
@@ -395,6 +480,10 @@ export class LevelScene implements GameCtx {
       const e = this.enemies[i];
       if (e.state === 'dead' && e.deathT > 3) this.enemies.splice(i, 1);
     }
+  }
+
+  taunt(id: string): void {
+    this.hooks.voice(id);
   }
 
   pushPlayer(v: Vector3): void {
@@ -494,18 +583,53 @@ export class LevelScene implements GameCtx {
   }
 
   canSeePlayer(from: Vector3): boolean {
-    return this.world.los(from, this.player.eye);
+    return !this.playerHidden && this.world.los(from, this.player.eye);
   }
 
-  damagePlayer(amount: number, from: Vector3, kind: DamageKind): void {
+  /** A parriable attack is winding up near the player. */
+  private parryWarning(): boolean {
+    const p = this.player;
+    return this.enemies.some((e) => e.alive && e.parryTell > 0 && Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z) < 7);
+  }
+
+  /** Enemy whose attack was just parried; E performs a Gun Strike on it. */
+  private gunStrikeTarget: Enemy | null = null;
+  private gunStrikeT = 0;
+  /** Extra filter hook (abilities): return true to absorb a hit. */
+  hitFilter: ((amount: number, from: Vector3, kind: DamageKind, opts: HitOpts) => boolean) | null = null;
+  playerHidden = false;
+
+  damagePlayer(amount: number, from: Vector3, kind: DamageKind, opts: HitOpts = {}): void {
     const p = this.player;
     if (p.dead || p.noclip || this.completed || p.invulnT > 0) return;
+    if (opts.parriable && !opts.unblockable && p.parryT > 0) {
+      this.parrySuccess(opts.source ?? null, from);
+      return;
+    }
+    if (this.godMode) return;
+    if (this.hitFilter?.(amount, from, kind, opts)) return;
+    if (this.ability.id === 'aegis' && this.ability.active && kind !== 'melee' && !opts.unblockable) {
+      const to = new Vector3(from.x - p.pos.x, 0, from.z - p.pos.z).normalize();
+      const f = p.forward;
+      if (to.x * f.x + to.z * f.z > Math.cos(1.3)) {
+        this.particles.emit('sparks', p.eye.add(new Vector3(f.x, 0, f.z).scale(0.8)), to, 8, 0.8);
+        this.sound('impact_metal', null, { pitch: 1.4, volume: 0.5 });
+        return;
+      }
+    }
     amount = Math.round(amount * (this.siege?.playerDamageMul() ?? 1));
     if (amount <= 0) return;
     this.style.hurt(amount);
-    const absorbed = Math.min(p.armor, Math.floor(amount / 3));
-    p.armor -= absorbed;
-    p.health -= amount - absorbed;
+    if (opts.piercing) {
+      // armor-piercing hell-flame: shreds armor twice as fast and still burns flesh
+      const had = p.armor > 0;
+      p.armor = Math.max(0, p.armor - amount * 2);
+      p.health -= Math.round(amount * (had ? 0.5 : 1));
+    } else {
+      const absorbed = Math.min(p.armor, Math.floor(amount / 3));
+      p.armor -= absorbed;
+      p.health -= amount - absorbed;
+    }
     const to = new Vector3(from.x - p.pos.x, 0, from.z - p.pos.z);
     const ang = Math.atan2(to.x, to.z) - p.yaw;
     const rel = Math.atan2(Math.sin(ang), Math.cos(ang));
@@ -576,6 +700,12 @@ export class LevelScene implements GameCtx {
       const playerCaused = kind === 'bullet' || kind === 'pellet' || kind === 'saw' || kind === 'blast';
       if (playerCaused) this.playerHit({ kill: true });
       if (e.kind === 'zombieman') this.spawnDrop('bulletClip', e.pos);
+      if (e.kind === 'boltgunner') this.spawnDrop(this.player.weapons.has('bolter') ? 'bolts' : 'bolter', e.pos);
+      if (e.kind === 'hellflamer') this.spawnDrop(this.player.weapons.has('flamer') ? 'fuel' : 'flamer', e.pos);
+      if (e.kind === 'terminator') {
+        this.spawnDrop('bolts', e.pos);
+        this.spawnDrop('fuel', e.pos.add(new Vector3(0.5, 0, 0.3)));
+      }
       if (e.gibbed) this.gibBurst(e);
       else {
         const p = e.pos.add(new Vector3((Math.random() - 0.5) * 0.4, 0.004, (Math.random() - 0.5) * 0.4));
@@ -734,6 +864,27 @@ export class LevelScene implements GameCtx {
     return 'none';
   }
 
+  playerFlame(): void {
+    const p = this.player;
+    const f = p.forward;
+    const eye = p.eye;
+    // visuals: a spray of green fire puffs along the cone
+    for (let i = 0; i < 3; i++) {
+      const d = new Vector3(f.x + (Math.random() - 0.5) * 0.5, f.y + (Math.random() - 0.5) * 0.25, f.z + (Math.random() - 0.5) * 0.5).normalize();
+      this.particles.emit('fire', eye.add(f.scale(0.9)).add(new Vector3(0, -0.25, 0)), d.scale(9 + Math.random() * 4), 2, 0.25, 1.2);
+    }
+    if (Math.random() < 0.3) this.lights.addFx(eye.add(f.scale(3)), new Color3(0.3, 1, 0.6), 2, 9, 0.12);
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      const to = e.eye.subtract(eye);
+      const dist = to.length();
+      if (dist > FLAMER.range + e.radius) continue;
+      if (Vector3.Dot(to.scale(1 / dist), f) < Math.cos(FLAMER.cone)) continue;
+      if (!this.world.los(eye, e.eye)) continue;
+      this.damageEnemy(e, FLAMER.damage, to, 'flame', e.eye);
+    }
+  }
+
   fireRocket(): void {
     this.rockets.fire(this);
   }
@@ -810,6 +961,13 @@ export class LevelScene implements GameCtx {
         break;
       case 'exit':
         this.complete();
+        break;
+      case 'ability':
+        this.ability.equip(a.id as never);
+        this.ui.hud.message(t('ability.unlocked', { name: t('ability.' + a.id) }));
+        break;
+      case 'chooseAbility':
+        this.hooks.chooseAbility([]);
         break;
     }
   }
@@ -930,6 +1088,10 @@ export class LevelScene implements GameCtx {
   // ------------------------------------------------------------------ frame
 
   private tryUse(): void {
+    if (this.gunStrikeTarget && this.gunStrikeT > 0 && this.gunStrikeTarget.alive) {
+      this.gunStrike(this.gunStrikeTarget);
+      return;
+    }
     const glory = this.gloryTarget();
     if (glory) {
       this.gloryKill(glory);
@@ -980,19 +1142,9 @@ export class LevelScene implements GameCtx {
     if (!p.dead && input.pressed('use')) this.tryUse();
     if (!p.dead && this.siege?.shopOpen && input.pressed('shop')) this.hooks.openShop();
 
-    // Q: focus — the world runs at FOCUS.worldScale, the marine at full speed
-    if (!p.dead && input.pressed('focus')) {
-      if (this.focusOn) this.setFocus(false);
-      else if (this.focus >= FOCUS.minToStart) this.setFocus(true);
-    }
-    if (this.focusOn) {
-      this.focus -= dt / this.focusDuration;
-      if (this.focus <= 0 || p.dead) {
-        this.focus = Math.max(0, this.focus);
-        this.setFocus(false);
-      }
-    } else this.focus = Math.min(1, this.focus + dt / FOCUS.recharge);
-    const wdt = this.focusOn ? dt * FOCUS.worldScale : dt;
+    // Q: the equipped ability (focus slows the world, the marine keeps full speed)
+    this.ability.update(dt, input);
+    const wdt = dt * this.ability.worldScale;
 
     // G: frag grenade
     this.grenadeCD -= dt;
@@ -1051,11 +1203,17 @@ export class LevelScene implements GameCtx {
 
     this.debris.update(wdt);
     this.shake.update(dt);
-    this.ui.hud.setFocus(this.focus, this.focusOn);
     this.style.update(dt);
     const sr = this.style.rank;
     this.ui.hud.setStyle(sr.letter, t(sr.key), this.style.progress, this.style.points > 1, this.style.rankIndex);
-    this.ui.hud.prompt(this.gloryTarget() ? t('glory.prompt') : null);
+    if (this.sandbox) {
+      for (const k of Object.keys(p.ammo) as AmmoType[]) p.ammo[k] = AMMO_MAX[k];
+      this.ui.hud.inspect(this.inspectTarget());
+    }
+    if (this.data.id === 'battle' && !p.dead && input.pressed('shop')) this.hooks.openBattleMenu();
+    this.gunStrikeT -= dt;
+    if (this.gunStrikeT <= 0) this.gunStrikeTarget = null;
+    this.ui.hud.prompt(this.gunStrikeTarget ? t('gunstrike.prompt') : this.gloryTarget() ? t('glory.prompt') : this.parryWarning() ? t('parry.prompt') : null);
     this.dashFov = Math.max(0, this.dashFov - dt * 5);
     this.camera.fov = this.baseFov * (1 - 0.72 * this.zoom) * (1 + 0.08 * this.dashFov);
 
@@ -1174,7 +1332,7 @@ export class LevelScene implements GameCtx {
   }
 
   private updateBoss(): void {
-    if (this.siege) this.boss = this.enemies.find((e) => e.kind === 'warhound' && (e.alive || e.deathT < 1.5)) ?? null;
+    if (this.siege) this.boss = this.enemies.find((e) => e.def.bossName && (e.alive || e.deathT < 1.5)) ?? null;
     const b = this.boss;
     const show = !!b && b.state !== 'dormant' && b.state !== 'idle' && (b.alive || b.deathT < 1.5);
     if (show && b) this.ui.hud.setBoss(b.def.bossName!, b.hp / b.maxHp);
@@ -1221,7 +1379,13 @@ export class LevelScene implements GameCtx {
       if (!f) continue;
       let l = L(e.pos.x, e.pos.z);
       if (e.painFlash > 0) l = [l[0] * 1.8 + 0.5, l[1] * 1.4 + 0.25, l[2] * 1.4 + 0.25];
-      if (e.staggerT > 0 && e.alive) {
+      if (e.parryTell > 0 && e.alive) {
+        const k = 0.6 + 0.4 * Math.sin(this.elapsed * 30);
+        l = [l[0] * 0.6 + 0.2, l[1] * 0.8 + 0.5 * k, l[2] + 1.2 * k];
+      } else if (e.dangerTell > 0 && e.alive) {
+        const k = 0.6 + 0.4 * Math.sin(this.elapsed * 30);
+        l = [l[0] + 1.3 * k, l[1] * 0.5, l[2] * 0.5];
+      } else if (e.staggerT > 0 && e.alive) {
         const k = 0.5 + 0.5 * Math.sin(this.elapsed * 14);
         l = [l[0] + 0.9 * k + 0.3, l[1] + 0.45 * k + 0.1, l[2] * 0.6];
       }
@@ -1246,12 +1410,30 @@ export class LevelScene implements GameCtx {
       const fr = SPRITES[`telefog${Math.min(3, Math.floor(tf.t / 0.12))}`];
       b.add(fr, tf.pos.x, tf.pos.y, tf.pos.z, [1, 1, 1], { depthBias: 0.4 });
     }
+    for (const e of this.enemies) {
+      if (!(e instanceof Sorcerer) || !e.alive) continue;
+      if (e.shieldHp > 0 || e.isBound) {
+        const k = Math.floor(this.elapsed * 8) % 2;
+        b.add(SPRITES['shield' + k], e.pos.x, e.pos.y + e.height * 0.5, e.pos.z, e.isBound ? [1.4, 0.4, 0.4] : [1, 1, 1], { full: true, scale: 1.25, depthBias: 0.3 });
+      }
+      const fx = e.beamFx;
+      if (fx) {
+        const seg = fx.to.subtract(fx.from);
+        const len = seg.length();
+        const n = Math.min(120, Math.ceil(len / (fx.red ? 0.9 : 0.45)));
+        for (let i = 0; i <= n; i++) {
+          const q = fx.from.add(seg.scale(i / n));
+          b.add(SPRITES[fx.red ? 'beamRed' : 'beam'], q.x, q.y, q.z, [1, 1, 1], { full: true, scale: fx.red ? 0.6 : 1.4, depthBias: 0.2 });
+        }
+      }
+    }
     for (const h of this.hazards) {
       const k = Math.min(2, Math.floor((h.t / h.delay) * 3));
       b.add(SPRITES['erupt' + k], h.pos.x, h.pos.y + 0.25, h.pos.z, [1, 1, 1], { full: true, scale: h.radius * 0.9, depthBias: 0.3 });
     }
     this.projectiles.draw(b);
     this.grenades.draw(b, this);
+    this.ability.draw(b);
     this.rockets.draw(b);
     this.debris.draw(b, (x, z) => L(x, z));
     b.end();
@@ -1264,7 +1446,12 @@ export class LevelScene implements GameCtx {
     hud.setArmor(p.armor);
     const at = this.weapons.ammoType;
     hud.setAmmo(at ? p.ammo[at] : null);
-    hud.setReserves(p.ammo, AMMO_MAX, at);
+    const used = new Set<AmmoType>(['grenades']);
+    for (const w of p.weapons) {
+      const a = this.weapons.weapons[w].ammo;
+      if (a) used.add(a);
+    }
+    hud.setReserves(p.ammo, AMMO_MAX, at, used);
     hud.setArms(p.weapons, this.weapons.current);
     hud.setKeys(p.keys);
   }
@@ -1313,8 +1500,8 @@ export class LevelScene implements GameCtx {
 
   debugGiveAll(): void {
     const p = this.player;
-    p.weapons = new Set(['pistol', 'shotgun', 'chainsword', 'sniper', 'launcher']);
-    p.ammo = { bullets: 200, shells: 50, rounds: 30, rockets: 20, grenades: 8 };
+    p.weapons = new Set(['pistol', 'shotgun', 'chainsword', 'sniper', 'launcher', 'bolter', 'flamer']);
+    p.ammo = { bullets: 200, shells: 50, rounds: 30, rockets: 20, bolts: 180, fuel: 200, grenades: 8 };
     p.keys = new Set(['red', 'blue']);
     p.health = 100;
     p.armor = 200;

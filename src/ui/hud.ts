@@ -85,6 +85,8 @@ export class HUD {
   private bossKey: string | null = null;
   private focusEl: HTMLElement;
   private focusFill: HTMLElement;
+  private abilityLabel!: HTMLElement;
+  private abilityFx!: HTMLElement;
   private scopeEl: HTMLElement;
   private slowEl: HTMLElement;
   private bannerEl: HTMLElement;
@@ -95,6 +97,7 @@ export class HUD {
   private styleFeed: HTMLElement;
   private promptEl: HTMLElement;
   private scoreEl: HTMLElement;
+  private inspectEl: HTMLElement;
   private bannerTimer = 0;
   readonly clickEl: HTMLElement;
   readonly viewLayer: HTMLElement;
@@ -123,10 +126,12 @@ export class HUD {
     this.bossFill = h('i');
     this.bossEl = h('div', { class: 'boss-bar hidden' }, [this.bossName, h('div', { class: 'boss-track' }, [this.bossFill])]);
     this.focusFill = h('i');
-    this.focusEl = h('div', { class: 'focus-meter' }, [h('b', { text: 'Q' }), h('div', { class: 'focus-track' }, [this.focusFill])]);
+    this.abilityLabel = h('b', { text: 'Q' });
+    this.focusEl = h('div', { class: 'focus-meter' }, [this.abilityLabel, h('div', { class: 'focus-track' }, [this.focusFill])]);
+    this.abilityFx = h('div', { class: 'ability-fx' });
     this.scopeEl = h('div', { class: 'scope-overlay' }, [h('i')]);
     this.slowEl = h('div', { class: 'slowmo-overlay' });
-    this.el.prepend(this.scopeEl, this.slowEl);
+    this.el.prepend(this.scopeEl, this.slowEl, this.abilityFx);
     this.bannerEl = h('div', { class: 'round-banner' });
     this.styleLetter = h('b');
     this.styleName = h('span', { class: 'style-name' });
@@ -135,7 +140,8 @@ export class HUD {
     this.styleEl = h('div', { class: 'style-meter' }, [this.styleLetter, this.styleName, h('div', { class: 'style-track' }, [this.styleFill]), this.styleFeed]);
     this.promptEl = h('div', { class: 'ctx-prompt' });
     this.scoreEl = h('div', { class: 'siege-score' });
-    this.el.append(this.bannerEl, this.styleEl, this.promptEl, this.scoreEl);
+    this.inspectEl = h('div', { class: 'inspect' });
+    this.el.append(this.bannerEl, this.styleEl, this.promptEl, this.scoreEl, this.inspectEl);
     this.el.append(cross, this.hitEl, ring, this.msgEl, this.objEl, this.clickEl, this.bossEl, this.focusEl);
 
     const bar = h('div', { class: 'hud-bar' });
@@ -154,7 +160,7 @@ export class HUD {
     c2.append(this.hpNum, label('hud.health'));
     const c3 = cell();
     const arms = h('div', { class: 'arms' });
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 7; i++) {
       const s = h('span', { text: String(i) });
       this.armsEls.push(s);
       arms.append(s);
@@ -182,9 +188,11 @@ export class HUD {
     const [rs, vs] = row('SHEL');
     const [rr, vr] = row('RNDS');
     const [rk, vk] = row('RCKT');
+    const [rt, vt] = row('BOLT');
+    const [rf, vf] = row('FUEL');
     const [rg, vg] = row('GREN');
-    this.resRows = { bullets: rb, shells: rs, rounds: rr, rockets: rk, grenades: rg };
-    this.resVals = { bullets: vb, shells: vs, rounds: vr, rockets: vk, grenades: vg };
+    this.resRows = { bullets: rb, shells: rs, rounds: rr, rockets: rk, bolts: rt, fuel: rf, grenades: rg };
+    this.resVals = { bullets: vb, shells: vs, rounds: vr, rockets: vk, bolts: vt, fuel: vf, grenades: vg };
     c7.append(table);
     bar.append(c1, c2, c3, c4, c5, c6, c7);
     this.el.append(bar);
@@ -221,8 +229,9 @@ export class HUD {
     this.setText('am', this.ammoNum, v === null ? '—' : String(v), true);
   }
 
-  setReserves(r: Record<AmmoType, number>, max: Record<AmmoType, number>, current: AmmoType | null): void {
-    for (const k of ['bullets', 'shells', 'rounds', 'rockets', 'grenades'] as AmmoType[]) {
+  setReserves(r: Record<AmmoType, number>, max: Record<AmmoType, number>, current: AmmoType | null, used?: Set<AmmoType>): void {
+    for (const k of ['bullets', 'shells', 'rounds', 'rockets', 'bolts', 'fuel', 'grenades'] as AmmoType[]) {
+      this.resRows[k].style.display = !used || used.has(k) ? '' : 'none';
       const s = `${r[k]}<b>/${max[k]}</b>`;
       if (this.cache['res' + k] !== s) {
         this.cache['res' + k] = s;
@@ -233,7 +242,7 @@ export class HUD {
   }
 
   setArms(owned: Set<WeaponId>, current: WeaponId): void {
-    const ids: WeaponId[] = ['pistol', 'shotgun', 'chainsword', 'sniper', 'launcher'];
+    const ids: WeaponId[] = ['pistol', 'shotgun', 'chainsword', 'sniper', 'launcher', 'bolter', 'flamer'];
     ids.forEach((id, i) => {
       this.armsEls[i].classList.toggle('owned', owned.has(id));
       this.armsEls[i].classList.toggle('active', current === id);
@@ -296,6 +305,16 @@ export class HUD {
     this.promptEl.classList.toggle('show', !!text);
   }
 
+  /** Gallery inspect card (title + description) or null. */
+  inspect(info: { title: string; body: string } | null): void {
+    const v = info ? info.title + '|' + info.body : '';
+    if (this.cache.inspect === v) return;
+    this.cache.inspect = v;
+    this.inspectEl.innerHTML = '';
+    if (info) this.inspectEl.append(h('b', { text: info.title }), h('span', { text: info.body }));
+    this.inspectEl.classList.toggle('show', !!info);
+  }
+
   /** Siege score / souls readout. */
   setScore(text: string | null): void {
     const v = text ?? '';
@@ -315,6 +334,16 @@ export class HUD {
     this.bannerEl.classList.add('show');
     clearTimeout(this.bannerTimer);
     this.bannerTimer = window.setTimeout(() => this.bannerEl.classList.remove('show'), 2600);
+  }
+
+  setAbilityName(name: string): void {
+    this.abilityLabel.textContent = 'Q · ' + name;
+  }
+
+  /** Screen treatment while an ability runs (cloak shimmer, aegis frontal shield). */
+  setAbilityFx(id: string | null): void {
+    this.abilityFx.className = 'ability-fx' + (id ? ' show ' + id : '');
+    this.el.classList.toggle('cloaked', id === 'cloak');
   }
 
   setScope(on: boolean): void {

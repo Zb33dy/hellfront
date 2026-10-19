@@ -140,6 +140,44 @@ function launcher(fire: boolean): Pix {
   return p;
 }
 
+function bolter(fire: boolean): Pix {
+  const p = new Pix(VM_W, VM_H, 8);
+  const dy = fire ? 5 : 0;
+  arm(p, 122, 114, 104, 94 + dy, 10);
+  p.ell(102, 92 + dy, 12, 9, GLOVE, 0.5);
+  // boxy bolter body, brass trim
+  p.poly([[72, 104 + dy], [110, 104 + dy], [104, 50 + dy], [80, 50 + dy]], [44, 46, 54]);
+  p.poly([[78, 96 + dy], [106, 96 + dy], [100, 56 + dy], [84, 56 + dy]], [62, 64, 74]);
+  p.rect(86, 30 + dy, 12, 24, [36, 36, 42]);
+  p.rect(84, 26 + dy, 16, 6, [50, 50, 58]);
+  p.rect(82, 62 + dy, 20, 3, [190, 150, 70]);
+  p.rect(88, 74 + dy, 8, 14, [30, 30, 34]);
+  if (fire) p.ell(92, 24 + dy, 6, 4, glow(110, 180, 255, 0.9), 0);
+  arm(p, 30, 114, 70, 76 + dy, 9);
+  p.ell(78, 72 + dy, 11, 8, GLOVE, 0.5);
+  p.finish([14, 12, 12]);
+  return p;
+}
+
+function flamer(fire: boolean): Pix {
+  const p = new Pix(VM_W, VM_H, 9);
+  arm(p, 122, 114, 104, 94, 10);
+  p.ell(102, 92, 12, 9, GLOVE, 0.5);
+  p.ell(110, 70, 12, 16, [60, 70, 50]);
+  p.rect(104, 56, 12, 4, [170, 120, 60]);
+  p.poly([[78, 100], [104, 100], [98, 40], [86, 40]], [56, 56, 62]);
+  p.rect(88, 26, 8, 16, [44, 44, 50]);
+  p.rect(86, 22, 12, 5, [170, 120, 60]);
+  p.ell(92, 22, 3, 2, glow(120, 255, 200, 0.9), 0);
+  if (fire) {
+    for (let i = 0; i < 5; i++) p.ell(92 + (i % 2 ? 4 : -4), 16 - i * 4, 7 + i * 2, 5 + i, glow(i < 2 ? 160 : 90, 255, i < 2 ? 220 : 190, 0.75), 0);
+  }
+  arm(p, 30, 114, 72, 74, 9);
+  p.ell(80, 70, 11, 8, GLOVE, 0.5);
+  p.finish([14, 12, 12]);
+  return p;
+}
+
 function flash(big: boolean): Pix {
   const p = new Pix(48, 40, big ? 5 : 4);
   const cx = 24, cy = 24;
@@ -160,6 +198,8 @@ export interface WeaponFrames {
   chainsword: { idle0: HTMLCanvasElement; idle1: HTMLCanvasElement; swing0: HTMLCanvasElement; swing1: HTMLCanvasElement };
   sniper: { idle: HTMLCanvasElement; fire: HTMLCanvasElement; pump1: HTMLCanvasElement; pump2: HTMLCanvasElement };
   launcher: { idle: HTMLCanvasElement; fire: HTMLCanvasElement };
+  bolter: { idle: HTMLCanvasElement; fire: HTMLCanvasElement };
+  flamer: { idle: HTMLCanvasElement; fire: HTMLCanvasElement };
   flashSmall: HTMLCanvasElement;
   flashBig: HTMLCanvasElement;
 }
@@ -182,6 +222,8 @@ export function weaponFrames(): WeaponFrames {
       pump1: sniper('pump1').toCanvas(), pump2: sniper('pump2').toCanvas(),
     },
     launcher: { idle: launcher(false).toCanvas(), fire: launcher(true).toCanvas() },
+    bolter: { idle: bolter(false).toCanvas(), fire: bolter(true).toCanvas() },
+    flamer: { idle: flamer(false).toCanvas(), fire: flamer(true).toCanvas() },
     flashSmall: flash(false).toCanvas(),
     flashBig: flash(true).toCanvas(),
   };

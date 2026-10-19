@@ -14,7 +14,18 @@ import type { NavField } from '../ai/navigation';
 import type { Projectiles } from '../entities/projectile';
 import type { PickupKind } from '../level/types';
 
-export type DamageKind = 'bullet' | 'pellet' | 'melee' | 'fireball' | 'blast' | 'saw';
+export type DamageKind = 'bullet' | 'pellet' | 'melee' | 'fireball' | 'blast' | 'saw' | 'flame';
+
+export interface HitOpts {
+  /** The attacker (parry / gun-strike target). */
+  source?: Enemy;
+  /** Blue-telegraphed melee: a well-timed parry (F) negates it and opens a Gun Strike. */
+  parriable?: boolean;
+  /** Red-telegraphed: cannot be parried or blocked by the protective ability. */
+  unblockable?: boolean;
+  /** Armor-piercing: burns through armor fast and still hurts health. */
+  piercing?: boolean;
+}
 
 /** Everything entities and weapons need from the running level. */
 export interface GameCtx {
@@ -32,7 +43,9 @@ export interface GameCtx {
   readonly time: number;
   sound(id: SoundId, pos?: Vector3 | null, opts?: PlayOpts): SoundHandle;
   lightAt(x: number, z: number): [number, number, number];
-  damagePlayer(amount: number, from: Vector3, kind: DamageKind): void;
+  damagePlayer(amount: number, from: Vector3, kind: DamageKind, opts?: HitOpts): void;
+  /** True while the player is hidden from monsters (invisibility ability). */
+  readonly playerHidden: boolean;
   damageEnemy(e: Enemy, amount: number, dir: Vector3, kind: DamageKind, hitPos?: Vector3): void;
   radiusDamage(center: Vector3, radius: number, damage: number, source: unknown): void;
   hitscan(origin: Vector3, dir: Vector3, range: number, damage: number, owner: Enemy | null, kind: DamageKind): void;
@@ -47,10 +60,14 @@ export interface GameCtx {
   muzzleFlash(big: boolean): void;
   /** Launches a player rocket from the eye. */
   fireRocket(): void;
+  /** Hellflamer cone in front of the player (one tick). */
+  playerFlame(): void;
   /** Spawns a monster mid-fight (boss summons). World coordinates. */
   summon(kind: EnemyKind, x: number, z: number, opts?: { hpMul?: number; tracked?: boolean }): Enemy | null;
   /** Adds velocity to the player (shockwaves). */
   pushPlayer(v: Vector3): void;
+  /** A boss line over the radio channel (subtitled). */
+  taunt(id: string): void;
   /** Telegraphed ground eruption: warning for `delay` seconds, then damages the player inside `radius`. */
   hazard(pos: Vector3, delay: number, radius: number, damage: number): void;
 }

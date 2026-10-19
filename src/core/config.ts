@@ -27,13 +27,18 @@ export const PLAYER = {
   dashSpeed: 20,
   dashTime: 0.17,
   dashCooldown: 0.85,
+  /** Quake-style air strafing: per-frame wish cap (m/s) and hard horizontal speed cap. */
+  airWishCap: 1.2,
+  maxBhopSpeed: 21,
+  parryWindow: 0.3,
+  parryCooldown: 0.55,
 } as const;
 
-export type AmmoType = 'bullets' | 'shells' | 'rounds' | 'rockets' | 'grenades';
-export type WeaponId = 'pistol' | 'shotgun' | 'chainsword' | 'sniper' | 'launcher';
+export type AmmoType = 'bullets' | 'shells' | 'rounds' | 'rockets' | 'bolts' | 'fuel' | 'grenades';
+export type WeaponId = 'pistol' | 'shotgun' | 'chainsword' | 'sniper' | 'launcher' | 'bolter' | 'flamer';
 export type KeyColor = 'red' | 'blue' | 'yellow';
 
-export const AMMO_MAX: Record<AmmoType, number> = { bullets: 200, shells: 50, rounds: 30, rockets: 20, grenades: 8 };
+export const AMMO_MAX: Record<AmmoType, number> = { bullets: 200, shells: 50, rounds: 30, rockets: 20, bolts: 180, fuel: 200, grenades: 8 };
 
 export interface HitscanWeaponDef {
   kind: 'hitscan';
@@ -63,7 +68,7 @@ export interface MeleeWeaponDef {
   lunge: number;
 }
 
-export const WEAPONS: { pistol: HitscanWeaponDef; shotgun: HitscanWeaponDef; chainsword: MeleeWeaponDef; sniper: HitscanWeaponDef } = {
+export const WEAPONS: { pistol: HitscanWeaponDef; shotgun: HitscanWeaponDef; chainsword: MeleeWeaponDef; sniper: HitscanWeaponDef; bolter: HitscanWeaponDef } = {
   pistol: {
     kind: 'hitscan', ammo: 'bullets', ammoPerShot: 1, pellets: 1,
     damageMin: 10, damageMax: 15, spread: 0.008, fireInterval: 0.36, range: 120,
@@ -84,20 +89,28 @@ export const WEAPONS: { pistol: HitscanWeaponDef; shotgun: HitscanWeaponDef; cha
     damageMin: 200, damageMax: 240, spread: 0, fireInterval: 1.25, range: 240,
     recoil: 0.11, shake: 0.4, noise: 36,
   },
+  // captured from Boltgunners
+  bolter: {
+    kind: 'hitscan', ammo: 'bolts', ammoPerShot: 1, pellets: 1,
+    damageMin: 20, damageMax: 27, spread: 0.02, fireInterval: 0.13, range: 120,
+    recoil: 0.018, shake: 0.1, noise: 30,
+  },
 };
+/** Captured hellflamer cone. */
+export const FLAMER = { range: 9, cone: 0.45, damage: 7 };
 
 /** Thrown frag grenade (G). */
 export const GRENADE = { damage: 160, radius: 6.5, fuse: 1.7, speed: 16, cooldown: 0.7 };
 /** Q: focus — the world slows down, the marine does not. */
 export const FOCUS = { duration: 5, recharge: 16, worldScale: 0.3, minToStart: 0.15 };
 
-export const WEAPON_SLOTS: WeaponId[] = ['pistol', 'shotgun', 'chainsword', 'sniper', 'launcher'];
+export const WEAPON_SLOTS: WeaponId[] = ['pistol', 'shotgun', 'chainsword', 'sniper', 'launcher', 'bolter', 'flamer'];
 /** Rocket launcher projectile. */
 export const ROCKET = { speed: 32, damage: 140, radius: 5.5, interval: 0.85 };
 export const WEAPON_SWITCH_TIME = 0.22;
 
-export type EnemyKind = 'zombieman' | 'imp' | 'pinky' | 'ironclad' | 'warden' | 'executioner' | 'core' | 'wraith' | 'sovereign' | 'warhound';
-export type DamageType = 'bullet' | 'pellet' | 'melee' | 'fireball' | 'blast' | 'saw';
+export type EnemyKind = 'zombieman' | 'imp' | 'pinky' | 'ironclad' | 'warden' | 'executioner' | 'core' | 'wraith' | 'sovereign' | 'warhound' | 'boltgunner' | 'hellflamer' | 'terminator' | 'sorcerer';
+export type DamageType = 'bullet' | 'pellet' | 'melee' | 'fireball' | 'blast' | 'saw' | 'flame';
 
 export interface EnemyDef {
   hp: number;
@@ -194,6 +207,33 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     rangedWindup: 0.5, rangedCooldown: [2.2, 3.4], rangedDamage: [8, 12], rangedRange: 16,
     gibThreshold: 99999, score: 1, mass: 0.1, bossName: 'boss.warhound',
   },
+  // Siege heretic host: soulless power armor raised by the Sorcerer.
+  boltgunner: {
+    hp: 170, speed: 3.4, radius: 0.6, height: 2.2, painChance: 0.15, painTime: 0.25,
+    sightRange: 50, reaction: 0.35, meleeRange: 1.8, meleeWindup: 0.4, meleeDamage: [10, 16],
+    rangedWindup: 0.35, rangedCooldown: [0.9, 1.6], rangedDamage: [5, 8], rangedRange: 36,
+    gibThreshold: 80, score: 1, mass: 0.3,
+  },
+  hellflamer: {
+    hp: 190, speed: 3.9, radius: 0.6, height: 2.2, painChance: 0.15, painTime: 0.25,
+    sightRange: 40, reaction: 0.35, meleeRange: 1.8, meleeWindup: 0.4, meleeDamage: [10, 16],
+    rangedWindup: 0.45, rangedCooldown: [1.4, 2.2], rangedDamage: [4, 5], rangedRange: 8.5,
+    gibThreshold: 80, score: 1, mass: 0.3,
+  },
+  terminator: {
+    hp: 560, speed: 2.0, radius: 0.85, height: 2.8, painChance: 0.05, painTime: 0.25,
+    sightRange: 50, reaction: 0.5, meleeRange: 3.2, meleeWindup: 0.9, meleeDamage: [35, 50],
+    rangedWindup: 0.6, rangedCooldown: [1.8, 2.8], rangedDamage: [3, 5], rangedRange: 40,
+    gibThreshold: 140, score: 1, mass: 0.1,
+    dmgMul: { bullet: 0.7, pellet: 0.7 },
+  },
+  // Siege boss every 15th round.
+  sorcerer: {
+    hp: 4200, speed: 3.0, radius: 0.7, height: 2.5, painChance: 0.02, painTime: 0.2,
+    sightRange: 90, reaction: 0.3, meleeRange: 3.2, meleeWindup: 0.65, meleeDamage: [24, 34],
+    rangedWindup: 1.1, rangedCooldown: [1.2, 2.0], rangedDamage: [40, 55], rangedRange: 70,
+    gibThreshold: 99999, score: 1, mass: 0, bossName: 'boss.sorcerer',
+  },
 };
 
 export const PINKY_CHARGE = { range: 9, windup: 0.4, speed: 11.5, duration: 0.9, cooldown: [2.5, 4] as [number, number] };
@@ -229,6 +269,10 @@ export const PICKUPS = {
   grenades: 2,
   rockets: 3,
   launcherRockets: 6,
+  bolts: 30,
+  bolterBolts: 60,
+  fuel: 40,
+  flamerFuel: 80,
   startBullets: 50,
 } as const;
 

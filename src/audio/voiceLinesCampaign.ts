@@ -1,6 +1,7 @@
 import type { VoiceLine } from './subtitles';
 
 const v = (id: string, en: string, tr: string): VoiceLine => ({ id, file: `voice/${id}.mp3`, en, tr });
+const s = (id: string, en: string, tr: string): VoiceLine => ({ id, file: `voice/${id}.mp3`, en, tr, speaker: 'subs.sorcerer', dry: true });
 
 // Radio script for Chapters 2–5. Same speaker (Command); lines without a recorded file fall back
 // to procedural radio chatter, and the subtitle carries the line.
@@ -60,6 +61,17 @@ export const CAMPAIGN_LINES: VoiceLine[] = [
     'Geçidin sonunda bir hisar var. Sinyal içeriden geliyor.'),
   v('v4_complete', 'We are building a return window on your beacon. Buy us time. Kill whatever sits on that throne.',
     'İşaretçin üzerinden bir dönüş penceresi kuruyoruz. Bize zaman kazandır. O tahtta ne oturuyorsa öldür.'),
+
+  // Siege mode — the Sorcerer (dry, not over the radio)
+  s('s_intro', "So. Command's little hound has found my door. Kneel, and I will make your death quick.", "Demek Komuta'nın küçük tazısı kapımı buldu. Diz çök, ölümünü çabuk yapayım."),
+  s('s_taunt1', 'Your armor is a coffin, marine. I have filled a hundred of them.', 'Zırhın bir tabut, asker. Yüzlercesini doldurdum.'),
+  s('s_taunt2', 'Run, run! Your precious Commander cannot hear you scream down here.', 'Koş, koş! Değerli Komutanın burada çığlıklarını duyamaz.'),
+  s('s_taunt3', 'Every brother you see was once like you. Soon, you will march beside them.', 'Gördüğün her kardeş bir zamanlar senin gibiydi. Yakında sen de onların yanında yürüyeceksin.'),
+  s('s_taunt4', 'The Sovereign fell because it was weak. I am not the Sovereign.', 'Hükümdar zayıf olduğu için düştü. Ben Hükümdar değilim.'),
+  s('s_taunt5', 'Is that all? I have felt worse from a dying imp.', 'Hepsi bu mu? Ölen bir impten daha kötüsünü hissettim.'),
+  s('s_shield', 'Your bullets are prayers, and no one is listening.', 'Mermilerin dua, ve kimse dinlemiyor.'),
+  s('s_raise', 'Rise, my brothers! Death is no excuse!', 'Kalkın kardeşlerim! Ölüm bir bahane değil!'),
+  s('s_death', 'No... the gate... was mine...', 'Hayır... kapı... benimdi...'),
 
   // Siege mode
   v('vs_start', 'Siege protocol. They come in waves, marine. Hold the arena as long as you can.',

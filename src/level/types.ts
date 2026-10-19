@@ -62,7 +62,7 @@ export interface LightDef {
 
 export type PickupKind =
   | 'healthSmall' | 'healthLarge' | 'armor' | 'bulletClip' | 'bulletBox' | 'shells' | 'shellBox'
-  | 'keyRed' | 'keyBlue' | 'keyYellow' | 'shotgun' | 'chainsword' | 'sniper' | 'rounds' | 'grenades' | 'launcher' | 'rockets';
+  | 'keyRed' | 'keyBlue' | 'keyYellow' | 'shotgun' | 'chainsword' | 'sniper' | 'rounds' | 'grenades' | 'launcher' | 'rockets' | 'bolter' | 'bolts' | 'flamer' | 'fuel';
 
 export type PropKind = 'barrel' | 'lamp' | 'techColumn' | 'corpse';
 
@@ -81,6 +81,8 @@ export interface ThingDef {
   teleport?: boolean;
   /** Wave member that is present (not dormant) from the start. */
   awake?: boolean;
+  /** Gallery exhibit: frozen in place, invulnerable, inspectable. */
+  frozen?: boolean;
 }
 
 export type TriggerAction =
@@ -92,7 +94,9 @@ export type TriggerAction =
   | { do: 'unlockDoor'; id: string }
   | { do: 'checkpoint'; id: string }
   | { do: 'message'; key: string }
-  | { do: 'exit' };
+  | { do: 'exit' }
+  | { do: 'ability'; id: string }
+  | { do: 'chooseAbility' };
 
 export type TriggerWhen =
   | { enter: Rect }
@@ -120,7 +124,7 @@ export interface SecretDef {
 }
 
 export interface Loadout {
-  weapons: ('pistol' | 'shotgun' | 'chainsword' | 'sniper' | 'launcher')[];
+  weapons: ('pistol' | 'shotgun' | 'chainsword' | 'sniper' | 'launcher' | 'bolter' | 'flamer')[];
   bullets: number;
   shells: number;
   rounds?: number;

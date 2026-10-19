@@ -1,6 +1,7 @@
 import { RawTexture, Texture, type Scene } from '@babylonjs/core';
 import { Pix, glow, type RGBA } from './pixart';
 import { breachCore, executioner, hellbolt, ironclad, warden, type Pose } from './spritesCh23';
+import { beamSeg, chainLink, jumpRing, bolterPickup, boltsBox, flameJet, flamerPickup, fuelCan, hellShield, heresyBolt, hereticMarine, sorcerer, soulOrb } from './spritesHeretic';
 import { boneShard, eruptionMark, grenadePickup, grenadeSprite, launcherPickup, rocketsBox, rocketSprite, roundsBox, sniperPickup, sovereign, warhound, wraith } from './spritesCh45';
 
 // Original procedural pixel-art sprites for enemies, pickups, props and projectiles.
@@ -599,6 +600,23 @@ function buildFrames(): Map<string, { pix: Pix; anchor: 'bottom' | 'center' }> {
   monster('wraith', wraith, 56, 76, 14);
   monster('sovereign', sovereign, 128, 128, 34);
   monster('warhound', warhound, 112, 80, 26);
+  // ---- Siege: heretic host
+  monster('boltgunner', (p) => hereticMarine('boltgunner', p), 76, 86, 18);
+  monster('hellflamer', (p) => hereticMarine('hellflamer', p), 76, 86, 18);
+  monster('terminator', (p) => hereticMarine('terminator', p), 100, 104, 24);
+  monster('sorcerer', sorcerer, 84, 100, 20);
+  for (let k = 0; k < 2; k++) add('hbolt' + k, heresyBolt(k), 'center');
+  for (let k = 0; k < 2; k++) add('orb' + k, soulOrb(k), 'center');
+  for (let k = 0; k < 2; k++) add('shield' + k, hellShield(k), 'center');
+  for (let k = 0; k < 2; k++) add('flame' + k, flameJet(k), 'center');
+  add('beamRed', beamSeg(true), 'center');
+  add('beam', beamSeg(false), 'center');
+  add('bolter', bolterPickup());
+  add('flamer', flamerPickup());
+  add('bolts', boltsBox());
+  add('fuel', fuelCan());
+  for (let k = 0; k < 2; k++) add('jumpRing' + k, jumpRing(k), 'center');
+  add('chainLink', chainLink(), 'center');
   for (let k = 0; k < 2; k++) add('shard' + k, boneShard(k), 'center');
   for (let k = 0; k < 3; k++) add('erupt' + k, eruptionMark(k), 'center');
   add('sniper', sniperPickup());

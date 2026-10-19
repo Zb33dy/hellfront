@@ -13,9 +13,17 @@ const STEP = 0.62;
  */
 export function updateEnemy(e: Enemy, dt: number, ctx: GameCtx): void {
   e.stateT += dt;
+  e.parryTell -= dt;
+  e.dangerTell -= dt;
   e.animT += dt;
   e.painFlash -= dt;
   if (e.state === 'dormant') return;
+  if (e.frozen) {
+    // exhibits idle-breathe and face the visitor
+    const pp = ctx.player.pos;
+    e.yaw = Math.atan2(pp.x - e.pos.x, pp.z - e.pos.z);
+    return;
+  }
   if (e.staggerT > 0 && e.alive) {
     e.staggerT -= dt;
     e.moving = false;
@@ -80,7 +88,8 @@ export function updateEnemy(e: Enemy, dt: number, ctx: GameCtx): void {
         break;
       }
       e.attackCD -= dt;
-      if (e.tryAttack(ctx, dist, e.seesPlayer)) break;
+      // invisible player: monsters cannot commit to attacks
+      if (!ctx.playerHidden && e.tryAttack(ctx, dist, e.seesPlayer)) break;
       if (e.chaseSpeed() <= 0) {
         e.moving = false;
         break;

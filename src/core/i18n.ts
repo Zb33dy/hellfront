@@ -1,4 +1,5 @@
 import { STORY_EN, STORY_TR } from './storyText';
+import { MODES_EN, MODES_TR } from './modesText';
 
 export type Lang = 'en' | 'tr';
 
@@ -261,8 +262,8 @@ const tr: Dict = {
   'subs.speaker': 'KOMUTA',
 };
 
-Object.assign(en, STORY_EN);
-Object.assign(tr, STORY_TR);
+Object.assign(en, STORY_EN, MODES_EN);
+Object.assign(tr, STORY_TR, MODES_TR);
 const dicts: Record<Lang, Dict> = { en, tr };
 
 export function t(key: string, params?: Record<string, string | number>): string {
@@ -271,4 +272,4 @@ export function t(key: string, params?: Record<string, string | number>): string
   return s;
 }
 
-export const TIP_KEYS = ['tip.1', 'tip.2', 'tip.3', 'tip.4', 'tip.5', 'tip.6', 'tip.7', 'tip.8', 'tip.9', 'tip.10', 'tip.11', 'tip.12', 'tip.13'];
+export const TIP_KEYS = ['tip.1', 'tip.2', 'tip.3', 'tip.4', 'tip.5', 'tip.6', 'tip.7', 'tip.8', 'tip.9', 'tip.10', 'tip.11', 'tip.12', 'tip.13', 'tip.14', 'tip.15'];

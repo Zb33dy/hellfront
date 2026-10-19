@@ -20,6 +20,7 @@ export interface PlayerEvents {
   onNukage(): void;
   onJump(): void;
   onDash(): void;
+  onParry(): void;
 }
 
 /** First-person body: Quake-style acceleration, circle collision with wall sliding, step smoothing. */
@@ -32,7 +33,7 @@ export class Player {
   height: number = PLAYER.height;
   health = 100;
   armor = 0;
-  ammo: Record<AmmoType, number> = { bullets: PICKUPS.startBullets, shells: 0, rounds: 0, rockets: 0, grenades: 0 };
+  ammo: Record<AmmoType, number> = { bullets: PICKUPS.startBullets, shells: 0, rounds: 0, rockets: 0, bolts: 0, fuel: 0, grenades: 0 };
   weapons = new Set<WeaponId>(['pistol']);
   keys = new Set<KeyColor>();
   onGround = true;
@@ -56,6 +57,10 @@ export class Player {
   dashT = 0;
   dashCD = 0;
   invulnT = 0;
+  /** Parry window (s) and cooldown. */
+  parryT = 0;
+  parryCD = 0;
+  private landedT = 1;
   private dashDir = new Vector3();
   private lastSprintTap = -1e9;
 
@@ -95,7 +100,7 @@ export class Player {
   applyState(s: PlayerState): void {
     this.health = s.health;
     this.armor = s.armor;
-    this.ammo = Object.assign({ bullets: 0, shells: 0, rounds: 0, rockets: 0, grenades: 0 }, s.ammo);
+    this.ammo = Object.assign({ bullets: 0, shells: 0, rounds: 0, rockets: 0, bolts: 0, fuel: 0, grenades: 0 }, s.ammo);
     this.weapons = new Set(s.weapons);
     this.keys = new Set(s.keys);
   }
@@ -160,6 +165,14 @@ export class Player {
     // dash: double-tap sprint or the dash key; a short, fast burst with i-frames
     this.dashCD -= dt;
     this.invulnT -= dt;
+    this.parryT -= dt;
+    this.parryCD -= dt;
+    this.landedT += dt;
+    if (input.pressed('parry') && this.parryCD <= 0) {
+      this.parryT = PLAYER.parryWindow;
+      this.parryCD = PLAYER.parryCooldown;
+      this.ev.onParry();
+    }
     const tap = input.pressed('sprint');
     const now = performance.now();
     const dashReq = input.pressed('dash') || (tap && now - this.lastSprintTap < 280);
@@ -178,6 +191,11 @@ export class Player {
       this.dashT -= dt;
       this.vel.x = this.dashDir.x * PLAYER.dashSpeed;
       this.vel.z = this.dashDir.z * PLAYER.dashSpeed;
+    } else if (this.onGround && (input.pressed('jump') || (input.isDown('jump') && this.landedT < 0.06))) {
+      // bunny hop: jumping on the landing frame skips ground friction entirely
+      this.vel.y = PLAYER.jumpVel;
+      this.onGround = false;
+      this.ev.onJump();
     } else if (this.onGround) {
       // friction
       const drop = hv * PLAYER.friction * dt;
@@ -191,16 +209,18 @@ export class Player {
       const add = Math.min(Math.max(maxSpeed - cur, 0), PLAYER.accel * dt);
       this.vel.x += wx * add;
       this.vel.z += wz * add;
-      if (input.pressed('jump')) {
-        this.vel.y = PLAYER.jumpVel;
-        this.onGround = false;
-        this.ev.onJump();
-      }
     } else {
+      // Quake air control: only the part of the wish direction you are not already moving along
+      // accelerates, so strafing + turning in the air builds speed (strafe jumping / bunny hopping)
       const cur = this.vel.x * wx + this.vel.z * wz;
-      const add = Math.min(Math.max(maxSpeed - cur, 0), PLAYER.airAccel * dt);
+      const add = Math.min(Math.max(PLAYER.airWishCap - cur, 0), PLAYER.airAccel * maxSpeed * dt);
       this.vel.x += wx * add;
       this.vel.z += wz * add;
+      const hs = Math.hypot(this.vel.x, this.vel.z);
+      if (hs > PLAYER.maxBhopSpeed) {
+        this.vel.x *= PLAYER.maxBhopSpeed / hs;
+        this.vel.z *= PLAYER.maxBhopSpeed / hs;
+      }
     }
 
     const prevY = this.pos.y;
@@ -231,6 +251,7 @@ export class Player {
         this.pos.y = g2;
         this.vel.y = 0;
         this.onGround = true;
+        this.landedT = 0;
         if (impact > 3) {
           this.landDip = Math.min(0.35, impact * 0.025);
           this.ev.onLand(impact);

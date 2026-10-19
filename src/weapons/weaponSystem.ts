@@ -8,11 +8,12 @@ import { Pistol } from './pistol';
 import { Shotgun } from './shotgun';
 import { Sniper } from './sniper';
 import { Launcher } from './launcher';
+import { Bolter, Flamer } from './heresy';
 import type { Weapon } from './weapon';
 
 /** Selection, raise/lower animation, firing cadence, ammo checks and view-model motion. */
 export class WeaponSystem {
-  readonly weapons: Record<WeaponId, Weapon> = { pistol: new Pistol(), shotgun: new Shotgun(), chainsword: new Chainsword(), sniper: new Sniper(), launcher: new Launcher() };
+  readonly weapons: Record<WeaponId, Weapon> = { pistol: new Pistol(), shotgun: new Shotgun(), chainsword: new Chainsword(), sniper: new Sniper(), launcher: new Launcher(), bolter: new Bolter(), flamer: new Flamer() };
   current: WeaponId = 'pistol';
   /** Weapon held before the current one (Z swaps back to it). */
   previous: WeaponId | null = null;
@@ -52,7 +53,7 @@ export class WeaponSystem {
   }
 
   private bestWithAmmo(ctx: GameCtx): WeaponId {
-    for (const id of ['shotgun', 'launcher', 'sniper', 'pistol', 'chainsword'] as WeaponId[])
+    for (const id of ['shotgun', 'bolter', 'launcher', 'sniper', 'flamer', 'pistol', 'chainsword'] as WeaponId[])
       if (ctx.player.weapons.has(id) && this.hasAmmo(this.weapons[id], ctx)) return id;
     return 'pistol';
   }
@@ -65,6 +66,8 @@ export class WeaponSystem {
       if (input.pressed('weapon3')) this.request('chainsword', ctx);
       if (input.pressed('weapon4')) this.request('sniper', ctx);
       if (input.pressed('weapon5')) this.request('launcher', ctx);
+      if (input.pressed('weapon6')) this.request('bolter', ctx);
+      if (input.pressed('weapon7')) this.request('flamer', ctx);
       if (input.pressed('lastWeapon')) {
         const base = this.pending ?? this.current;
         let target = this.previous && this.previous !== base && p.weapons.has(this.previous) ? this.previous : null;

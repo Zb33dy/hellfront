@@ -47,6 +47,7 @@ export class Executioner extends Enemy {
       if (this.attackPhase === 0) {
         // tracks slowly during the wind-up, so a late sidestep works
         this.yaw += Math.max(-1.6 * dt, Math.min(1.6 * dt, angleDiff(this.yaw, want)));
+        this.parryTell = 0.1;
         if (this.attackT >= this.def.meleeWindup / Math.sqrt(ctx.diff.aggression)) {
           this.attackPhase = 1;
           this.attackT = 0;
@@ -58,7 +59,7 @@ export class Executioner extends Enemy {
           ctx.particles.emit('dust', hit, new Vector3(0, 1, 0), 14, 1.5);
           const off = Math.abs(angleDiff(this.yaw, want));
           if (dist < this.def.meleeRange + p.radius + 0.3 && off < 0.6) {
-            ctx.damagePlayer(rand(...this.def.meleeDamage) * ctx.diff.enemyDamage, this.pos, 'melee');
+            ctx.damagePlayer(rand(...this.def.meleeDamage) * ctx.diff.enemyDamage, this.pos, 'melee', { source: this, parriable: true });
           }
         }
         return true;

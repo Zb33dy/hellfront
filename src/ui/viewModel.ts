@@ -49,14 +49,21 @@ export class ViewModel {
       fc.drawImage(src, 0, 0);
       this.flashImg.style.display = 'block';
       // muzzle position in view-model space
-      const mx = weapon === 'shotgun' ? 83 : weapon === 'launcher' ? 95 : 84;
-      const my = weapon === 'shotgun' ? 14 : weapon === 'sniper' ? 4 : weapon === 'launcher' ? 28 : 36;
+      const mx = weapon === 'shotgun' ? 83 : weapon === 'launcher' ? 95 : weapon === 'bolter' ? 92 : 84;
+      const my = weapon === 'shotgun' ? 14 : weapon === 'sniper' ? 4 : weapon === 'launcher' ? 28 : weapon === 'bolter' ? 24 : 36;
       this.flashImg.style.left = `${((mx - 24) / VM_W) * 100}%`;
       this.flashImg.style.top = `${((my - 26) / VM_H) * 100}%`;
       this.flashImg.style.width = `${(48 / VM_W) * 100 * (big ? 1.25 : 1)}%`;
     } else {
       this.flashImg.style.display = 'none';
     }
+  }
+
+  /** Quick parry flick of the weapon. */
+  parry(): void {
+    this.el.classList.remove('parry');
+    void this.el.offsetWidth;
+    this.el.classList.add('parry');
   }
 
   setVisible(v: boolean): void {

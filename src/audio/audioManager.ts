@@ -281,6 +281,25 @@ export class AudioManager {
       buf = synthesizeChatter(c, estimateDuration(line.en), line.id.length * 131);
       chatter = true;
     }
+    if (line.dry && !chatter) {
+      // boss voice: dry, a touch of low-end weight, no squelch or static bed
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const g = c.createGain();
+      g.gain.value = 1.15;
+      src.connect(g).connect(this.voiceBus);
+      src.start(c.currentTime + 0.05);
+      const bed = c.createBufferSource();
+      this.currentVoice = { src, bed };
+      this.duckTo(0.6, 0.15);
+      src.onended = () => {
+        if (this.currentVoice?.src === src) {
+          this.currentVoice = null;
+          this.duckTo(1, 0.6);
+        }
+      };
+      return buf.duration + 0.1;
+    }
     this.play('radio_click');
     const src = c.createBufferSource();
     src.buffer = buf;

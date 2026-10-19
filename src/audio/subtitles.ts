@@ -6,6 +6,10 @@ export interface VoiceLine {
   file: string;
   en: string;
   tr: string;
+  /** i18n key of the speaker shown in the subtitle (default: Command). */
+  speaker?: string;
+  /** Not over the radio: played dry and in the open (boss voices). */
+  dry?: boolean;
 }
 
 // Radio script for Chapter 1. Audio is English; subtitles in EN/TR.

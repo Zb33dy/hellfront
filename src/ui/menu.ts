@@ -4,6 +4,10 @@ import { button, h, MenuNav, type UISound } from './dom';
 
 export interface MenuCallbacks {
   onNewGame(d: Difficulty, levelId: string): void;
+  /** Siege lobby: pick the starting round, then difficulty. */
+  onSiege(): void;
+  /** Extra modes (tutorial, gallery, battle test). */
+  onMode(id: string): void;
   /** Chapter select entries. */
   chapters(): { id: string; label: string }[];
   onContinue(): void;
@@ -22,7 +26,8 @@ export function logo(): HTMLElement {
 export class MenuScreen {
   readonly el = h('div', { class: 'screen', id: 'menu' });
   nav!: MenuNav;
-  private sub: 'none' | 'difficulty' | 'chapters' | 'credits' | 'quit' = 'none';
+  private sub: 'none' | 'difficulty' | 'chapters' | 'modes' | 'credits' | 'quit' = 'none';
+  private modesNav!: MenuNav;
   private chapNav!: MenuNav;
   private pendingLevel = 'level01';
   private mainNav!: MenuNav;
@@ -50,10 +55,8 @@ export class MenuScreen {
       }, s),
       (this.continueBtn = button(t('menu.continue'), () => this.cb.onContinue(), s)),
       button(t('menu.chapters'), () => this.open('chapters'), s),
-      button(t('menu.siege'), () => {
-        this.pendingLevel = 'siege';
-        this.open('difficulty');
-      }, s),
+      button(t('menu.siege'), () => this.cb.onSiege(), s),
+      button(t('menu.modes'), () => this.open('modes'), s),
       button(t('menu.settings'), () => this.cb.onSettings(), s),
       button(t('menu.credits'), () => this.open('credits'), s),
       button(t('menu.quit'), () => this.open('quit'), s),
@@ -87,6 +90,15 @@ export class MenuScreen {
     this.chapNav = new MenuNav([...cItems, chBack], s, () => this.open('none'));
     this.panels.chapters = chp;
 
+    // extra modes
+    const mp = h('div', { class: 'sub-panel plate' });
+    mp.append(h('div', { class: 'panel-title', text: t('menu.modes') }));
+    const mItems = ['tutorial', 'gallery', 'battle'].map((id) => button(t('mode.' + id), () => this.cb.onMode(id), s, t('mode.' + id + '.d')));
+    const mBack = button(t('common.back'), () => this.open('none'), s);
+    mp.append(...mItems, mBack);
+    this.modesNav = new MenuNav([...mItems, mBack], s, () => this.open('none'));
+    this.panels.modes = mp;
+
     // credits
     const cp = h('div', { class: 'sub-panel plate' });
     cp.append(h('div', { class: 'panel-title', text: t('credits.title') }));
@@ -106,7 +118,7 @@ export class MenuScreen {
     this.quitNav = new MenuNav([qBack], s, () => this.open('none'));
     this.panels.quit = qp;
 
-    this.el.append(dp, chp, cp, qp);
+    this.el.append(dp, chp, mp, cp, qp);
     this.refresh();
     this.open(this.sub, true);
   }
@@ -115,10 +127,16 @@ export class MenuScreen {
     this.continueBtn.classList.toggle('disabled', !this.cb.hasSave());
   }
 
-  open(which: 'none' | 'difficulty' | 'chapters' | 'credits' | 'quit', silent = false): void {
+  /** Opens the difficulty panel for a given level (Siege lobby). */
+  pickDifficulty(levelId: string): void {
+    this.pendingLevel = levelId;
+    this.open('difficulty');
+  }
+
+  open(which: 'none' | 'difficulty' | 'chapters' | 'modes' | 'credits' | 'quit', silent = false): void {
     this.sub = which;
     for (const [k, p] of Object.entries(this.panels)) p.classList.toggle('show', k === which);
-    this.nav = which === 'difficulty' ? this.diffNav : which === 'chapters' ? this.chapNav : which === 'credits' ? this.creditsNav : which === 'quit' ? this.quitNav : this.mainNav;
+    this.nav = which === 'difficulty' ? this.diffNav : which === 'chapters' ? this.chapNav : which === 'modes' ? this.modesNav : which === 'credits' ? this.creditsNav : which === 'quit' ? this.quitNav : this.mainNav;
     if (which === 'quit' && !silent) {
       // Browsers only allow closing tabs opened by script; show the message either way.
       try {

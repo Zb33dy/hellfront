@@ -8,6 +8,7 @@ import { DeathScreen, type DeathCallbacks } from './deathScreen';
 import { ChapterEndScreen, LevelCompleteScreen } from './levelComplete';
 import { LoadingScreen } from './loading';
 import { ShopScreen } from './shop';
+import { ChoiceScreen } from './choice';
 import { HUD } from './hud';
 import { SubtitleBar } from './subtitleBar';
 import { ViewModel } from './viewModel';
@@ -33,6 +34,7 @@ export class UIManager {
   readonly chapter: ChapterEndScreen;
   readonly loading: LoadingScreen;
   readonly shop: ShopScreen;
+  readonly choice: ChoiceScreen;
   readonly hud: HUD;
   readonly subtitles: SubtitleBar;
   readonly viewModel: ViewModel;
@@ -58,7 +60,8 @@ export class UIManager {
     this.chapter = new ChapterEndScreen(sound, cb.onChapterMenu, cb.onChapterNext);
     this.loading = new LoadingScreen();
     this.shop = new ShopScreen(sound, cb.onShopClose);
-    root.append(this.hud.el, this.subtitles.el, this.debug.el, this.menu.el, this.pause.el, this.death.el, this.complete.el, this.chapter.el, this.loading.el, this.settings.el, this.shop.el);
+    this.choice = new ChoiceScreen(sound);
+    root.append(this.hud.el, this.subtitles.el, this.debug.el, this.menu.el, this.pause.el, this.death.el, this.complete.el, this.chapter.el, this.loading.el, this.settings.el, this.shop.el, this.choice.el);
 
     window.addEventListener('keydown', (e) => {
       if (this.loading.el.classList.contains('show')) {
@@ -91,6 +94,7 @@ export class UIManager {
   currentNav(): MenuNav | null {
     if (this.settings.visible) return this.settings.nav;
     const vis = (el: HTMLElement) => el.classList.contains('show');
+    if (vis(this.choice.el)) return this.choice.nav;
     if (vis(this.shop.el)) return this.shop.nav;
     if (vis(this.pause.el)) return this.pause.nav;
     if (vis(this.death.el)) return this.death.nav;
@@ -108,6 +112,7 @@ export class UIManager {
     this.complete.hide();
     this.chapter.hide();
     this.shop.hide();
+    this.choice.hide();
     this.loading.hide();
   }
 

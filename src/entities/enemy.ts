@@ -58,6 +58,12 @@ export abstract class Enemy {
   /** Glory-kill window: staggered enemies freeze and glow; E executes them. */
   staggerT = 0;
   staggered = false;
+  /** >0 while a parriable (blue) attack winds up; drawn blue. */
+  parryTell = 0;
+  /** >0 while an unblockable (red) attack winds up; drawn red. */
+  dangerTell = 0;
+  /** Gallery exhibit: no AI, no damage. */
+  frozen = false;
   /** Siege 'swift' modifier. */
   speedMul = 1;
 
@@ -127,7 +133,7 @@ export abstract class Enemy {
   }
 
   damage(amount: number, dir: Vector3, kind: DamageKind, ctx: GameCtx): void {
-    if (!this.alive) return;
+    if (!this.alive || this.frozen) return;
     amount *= this.def.dmgMul?.[kind] ?? 1;
     this.hp -= amount;
     this.painFlash = 0.12;
