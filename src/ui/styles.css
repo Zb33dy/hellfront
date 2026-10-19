@@ -734,3 +734,24 @@ html, body {
     linear-gradient(#000, #000) center / 100% 2px no-repeat;
 }
 #hud.scoped .viewmodel, #hud.scoped .crosshair { display: none; }
+
+.round-banner {
+  position: absolute; left: 50%; top: 30%;
+  transform: translate(-50%, -50%) scale(.9);
+  text-align: center; pointer-events: none;
+  opacity: 0; transition: opacity .35s, transform .35s;
+}
+.round-banner.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.round-banner b {
+  display: block;
+  font-family: var(--font-head);
+  font-size: clamp(28px, 4.6vw, 64px);
+  color: #ff5a2a;
+  letter-spacing: 4px;
+  text-shadow: 4px 4px 0 #000, 0 0 24px #ff2a0a;
+}
+.round-banner span {
+  display: block; margin-top: 10px;
+  font-family: var(--font-head); font-size: clamp(12px, 1.4vw, 18px);
+  color: #ffd2a0; letter-spacing: 3px; text-shadow: 2px 2px 0 #000;
+}

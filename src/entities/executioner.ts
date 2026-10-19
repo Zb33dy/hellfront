@@ -1,7 +1,8 @@
 import { Color3, Vector3 } from '@babylonjs/core';
 import { HELLBOLT } from '../core/config';
 import { angleDiff, rand } from '../core/util';
-import type { GameCtx } from '../scenes/context';
+import type { SoundHandle } from '../audio/audioManager';
+import type { DamageKind, GameCtx } from '../scenes/context';
 import { Enemy, type EnemySounds } from './enemy';
 
 /**
@@ -12,6 +13,7 @@ export class Executioner extends Enemy {
   readonly kind = 'executioner' as const;
   readonly sounds: EnemySounds = { alert: 'imp_alert', pain: 'pinky_pain', death: 'imp_death', idle: 'imp_growl', pitch: 0.62 };
   private melee = false;
+  private rev: SoundHandle | null = null;
 
   constructor(x: number, z: number, angle: number, hpMul: number) {
     super('executioner', x, z, angle, hpMul);
@@ -22,7 +24,8 @@ export class Executioner extends Enemy {
     if (dist < this.def.meleeRange) {
       this.melee = true;
       this.setState('attack');
-      ctx.sound('chainsword_idle', this.pos, { pitch: 0.45, volume: 0.9 });
+      this.rev?.stop(0.05);
+      this.rev = ctx.sound('chainsword_idle', this.pos, { pitch: 0.45, volume: 0.9 });
       const blade = () => (this.state === 'attack' && this.attackPhase === 0 ? new Vector3(this.pos.x, this.pos.y + 2.8, this.pos.z) : null);
       ctx.lights.addFx(this.pos, new Color3(1, 0.2, 0.1), 2.2, 7, undefined, blade);
       return true;
@@ -47,6 +50,7 @@ export class Executioner extends Enemy {
         if (this.attackT >= this.def.meleeWindup / Math.sqrt(ctx.diff.aggression)) {
           this.attackPhase = 1;
           this.attackT = 0;
+          this.stopRev();
           ctx.sound('chainsword_hit', this.pos, { pitch: 0.45 });
           ctx.shake.add(0.5);
           const hit = this.pos.add(new Vector3(Math.sin(this.yaw) * 2, 0.2, Math.cos(this.yaw) * 2));
@@ -82,6 +86,17 @@ export class Executioner extends Enemy {
       return false;
     }
     return true;
+  }
+
+  private stopRev(): void {
+    this.rev?.stop(0.08);
+    this.rev = null;
+  }
+
+  damage(amount: number, dir: Vector3, kind: DamageKind, ctx: GameCtx): void {
+    super.damage(amount, dir, kind, ctx);
+    // death or a pain flinch cancels the wind-up
+    if (!this.alive || this.state === 'pain') this.stopRev();
   }
 
   attackFrame(): string {

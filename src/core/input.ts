@@ -7,6 +7,8 @@ import type { Action, SettingsStore } from './settingsStore';
 export class Input {
   private down = new Set<string>();
   private pressedSet = new Set<string>();
+  /** Typed letters this frame (layout-independent lookups for letter bindings). */
+  private pressedLetters = new Set<string>();
   mouseDX = 0;
   mouseDY = 0;
   wheel = 0;
@@ -27,7 +29,10 @@ export class Input {
         return;
       }
       if (['Space', 'Tab', 'F3', 'F4', 'ArrowUp', 'ArrowDown'].includes(e.code) || (this.locked && !e.ctrlKey)) e.preventDefault();
-      if (!this.down.has(e.code)) this.pressedSet.add(e.code);
+      if (!this.down.has(e.code)) {
+        this.pressedSet.add(e.code);
+        if (e.key && e.key.length === 1) this.pressedLetters.add('Key' + e.key.toLocaleUpperCase('en-US'));
+      }
       this.down.add(e.code);
     });
     window.addEventListener('keyup', (e) => this.down.delete(e.code));
@@ -102,7 +107,10 @@ export class Input {
   }
 
   pressed(a: Action): boolean {
-    return this.pressedSet.has(this.settings.data.bindings[a]);
+    const code = this.settings.data.bindings[a];
+    if (this.pressedSet.has(code)) return true;
+    // ability keys also answer to the printed letter (Turkish F, AZERTY, … layouts)
+    return (a === 'lastWeapon' || a === 'grenade' || a === 'focus') && this.pressedLetters.has(code);
   }
 
   codePressed(code: string): boolean {
@@ -119,6 +127,7 @@ export class Input {
 
   endFrame(): void {
     this.pressedSet.clear();
+    this.pressedLetters.clear();
     this.mouseDX = 0;
     this.mouseDY = 0;
     this.wheel = 0;

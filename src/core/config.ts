@@ -21,6 +21,9 @@ export const PLAYER = {
   nukageDamage: 8,
   nukageInterval: 1.0,
   fallDamageSpeed: 14,
+  crouchHeight: 0.95,
+  crouchEyeDrop: 0.68,
+  crouchSpeedMul: 0.5,
 } as const;
 
 export type AmmoType = 'bullets' | 'shells' | 'rounds' | 'grenades';
@@ -88,7 +91,7 @@ export const FOCUS = { duration: 5, recharge: 16, worldScale: 0.3, minToStart: 0
 export const WEAPON_SLOTS: WeaponId[] = ['pistol', 'shotgun', 'chainsword', 'sniper'];
 export const WEAPON_SWITCH_TIME = 0.22;
 
-export type EnemyKind = 'zombieman' | 'imp' | 'pinky' | 'ironclad' | 'warden' | 'executioner' | 'core' | 'wraith' | 'sovereign';
+export type EnemyKind = 'zombieman' | 'imp' | 'pinky' | 'ironclad' | 'warden' | 'executioner' | 'core' | 'wraith' | 'sovereign' | 'warhound';
 export type DamageType = 'bullet' | 'pellet' | 'melee' | 'fireball' | 'blast' | 'saw';
 
 export interface EnemyDef {
@@ -178,6 +181,13 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     sightRange: 80, reaction: 0.8, meleeRange: 5.5, meleeWindup: 1.0, meleeDamage: [30, 45],
     rangedWindup: 0.8, rangedCooldown: [1.4, 2.2], rangedDamage: [12, 18], rangedRange: 70,
     gibThreshold: 99999, score: 1, mass: 0, bossName: 'boss.sovereign',
+  },
+  // Siege mode: two-headed alpha hound, every fifth round, alone.
+  warhound: {
+    hp: 900, speed: 6.6, radius: 1.0, height: 1.9, painChance: 0.06, painTime: 0.2,
+    sightRange: 80, reaction: 0.3, meleeRange: 2.4, meleeWindup: 0.32, meleeDamage: [12, 18],
+    rangedWindup: 0.5, rangedCooldown: [2.2, 3.4], rangedDamage: [8, 12], rangedRange: 16,
+    gibThreshold: 99999, score: 1, mass: 0.1, bossName: 'boss.warhound',
   },
 };
 

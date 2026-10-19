@@ -63,7 +63,12 @@ export class WeaponSystem {
       if (input.pressed('weapon2')) this.request('shotgun', ctx);
       if (input.pressed('weapon3')) this.request('chainsword', ctx);
       if (input.pressed('weapon4')) this.request('sniper', ctx);
-      if (input.pressed('lastWeapon') && this.previous && p.weapons.has(this.previous)) this.request(this.previous, ctx);
+      if (input.pressed('lastWeapon')) {
+        const base = this.pending ?? this.current;
+        let target = this.previous && this.previous !== base && p.weapons.has(this.previous) ? this.previous : null;
+        if (!target) target = WEAPON_SLOTS.find((w) => w !== base && p.weapons.has(w) && this.hasAmmo(this.weapons[w], ctx)) ?? null;
+        if (target) this.request(target, ctx);
+      }
       if (input.wheel !== 0) {
         const owned = WEAPON_SLOTS.filter((w) => p.weapons.has(w));
         const base = this.pending ?? this.current;

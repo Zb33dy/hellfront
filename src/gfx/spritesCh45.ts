@@ -195,3 +195,55 @@ export function grenadePickup(): Pix {
   s.blit(grenadeSprite(false), 12, 2);
   return s;
 }
+
+// ------------------------------------------------------------------ Warhound: two-headed hellhound (Siege mode)
+
+export function warhound(p: Pose): Pix {
+  const s = new Pix(112, 80, 61);
+  const b = p.bob ?? 0;
+  const HIDE: RGBA = [92, 34, 26], HIDE_D: RGBA = [54, 18, 16], SPINE: RGBA = [210, 196, 170], EMBER = glow(255, 120, 30, 1);
+  const crouch = p.atk === 1 ? 6 : 0;
+  const ty = (p.pain ? -2 : 0) + crouch;
+  // hind + fore legs (front view, slightly splayed)
+  const lf = p.lFoot ?? [34, 79], rf = p.rFoot ?? [78, 79];
+  s.limb(40, 50 + b + ty, lf[0], lf[1] - 3, 7, 4, HIDE_D);
+  s.limb(72, 50 + b + ty, rf[0], rf[1] - 3, 7, 4, HIDE_D);
+  s.limb(48, 54 + b + ty, lf[0] + 10, 77, 5, 3, HIDE_D);
+  s.limb(64, 54 + b + ty, rf[0] - 10, 77, 5, 3, HIDE_D);
+  for (const x of [lf[0], rf[0], lf[0] + 10, rf[0] - 10]) {
+    s.ell(x, 77, 5, 2.4, [40, 20, 18]);
+    for (let k = -1; k <= 1; k++) s.set(x + k * 2, 79, SPINE);
+  }
+  // barrel chest with glowing cracks
+  s.ell(56, 46 + b + ty, 24, 16, HIDE);
+  s.speckle(56, 46 + b + ty, 18, HIDE_D, 70);
+  for (let k = 0; k < 5; k++) s.line(44 + k * 6, 40 + b + ty, 46 + k * 6, 52 + b + ty, glow(255, 90, 20, 0.7));
+  // spine ridge
+  for (let k = 0; k < 7; k++) s.poly([[40 + k * 5, 33 + b + ty], [44 + k * 5, 33 + b + ty], [42 + k * 5, 26 + b + ty]], SPINE);
+  // two heads on thick necks
+  const head = (cx: number, dir: number) => {
+    const hy = 30 + b + ty + (p.pain ? -2 : 0);
+    s.limb(56 + dir * 10, 40 + b + ty, cx, hy + 4, 8, 7, HIDE);
+    s.ell(cx, hy, 11, 9, HIDE);
+    s.poly([[cx - 6 * dir, hy - 7], [cx - 14 * dir, hy - 18], [cx - 2 * dir, hy - 9]], SPINE); // ear-horn
+    s.rect(cx - 6, hy - 3, 4, 2, glow(255, 200, 40, 1));
+    s.rect(cx + 2, hy - 3, 4, 2, glow(255, 200, 40, 1));
+    const open = p.atk === 2 || p.cast ? 6 : 2;
+    s.ell(cx, hy + 7, 8, 3 + open * 0.5, HIDE_D);
+    s.rect(cx - 6, hy + 5, 12, open, [40, 4, 4]);
+    for (let i = cx - 6; i <= cx + 6; i += 2) {
+      s.set(i, hy + 5, SPINE);
+      s.set(i, hy + 5 + open, SPINE);
+    }
+    if (p.cast) {
+      s.ell(cx + dir * 4, hy + 14, 7, 6, glow(255, 140, 40, 0.9), 0);
+      s.ell(cx + dir * 4, hy + 14, 3, 3, glow(255, 240, 180, 1), 0);
+    }
+  };
+  head(32, -1);
+  head(80, 1);
+  if (p.atk === 2) for (let k = 0; k < 6; k++) s.set(30 + s.rand() * 52, 44 + s.rand() * 8, EMBER);
+  if (p.pain) s.speckle(56, 44 + b, 14, [255, 230, 200], 40);
+  s.finish([14, 6, 6]);
+  return s;
+}

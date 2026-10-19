@@ -74,7 +74,7 @@ const en: Dict = {
   'act.cycle': 'Cycle weapons',
   'credits.title': 'CREDITS',
   'credits.body':
-    'HELLFRONT — an original tribute to 90s shooters.<br><br>Design, code, procedural art: built with Babylon.js, Vite and TypeScript.<br>Audio: generated with ElevenLabs, processed in Web Audio.<br>Fonts: Press Start 2P & VT323 (SIL Open Font License).<br><br>No original Doom assets were used.',
+    'HELLFRONT — an original tribute to 90s shooters.<br><br><b>A game by Hunk de Poitiers</b><br><br>Design, code, procedural art: built with Babylon.js, Vite and TypeScript.<br>Audio: generated with ElevenLabs, processed in Web Audio.<br>Fonts: Press Start 2P & VT323 (SIL Open Font License).<br><br>No original Doom assets were used.',
   'pause.title': 'PAUSED',
   'pause.resume': 'RESUME',
   'pause.restart': 'RESTART LEVEL',
@@ -195,7 +195,7 @@ const tr: Dict = {
   'act.cycle': 'Silah değiştir',
   'credits.title': 'YAPIMCILAR',
   'credits.body':
-    'HELLFRONT — 90\'ların nişancı oyunlarına özgün bir saygı duruşu.<br><br>Tasarım, kod, prosedürel sanat: Babylon.js, Vite ve TypeScript ile.<br>Ses: ElevenLabs ile üretildi, Web Audio ile işlendi.<br>Yazı tipleri: Press Start 2P & VT323 (SIL Open Font License).<br><br>Orijinal Doom içeriği kullanılmamıştır.',
+    'HELLFRONT — 90\'ların nişancı oyunlarına özgün bir saygı duruşu.<br><br><b>Yapımcı: Hunk de Poitiers</b><br><br>Tasarım, kod, prosedürel sanat: Babylon.js, Vite ve TypeScript ile.<br>Ses: ElevenLabs ile üretildi, Web Audio ile işlendi.<br>Yazı tipleri: Press Start 2P & VT323 (SIL Open Font License).<br><br>Orijinal Doom içeriği kullanılmamıştır.',
   'pause.title': 'DURAKLATILDI',
   'pause.resume': 'DEVAM',
   'pause.restart': 'BÖLÜMÜ YENİDEN BAŞLAT',

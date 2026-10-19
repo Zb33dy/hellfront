@@ -46,7 +46,7 @@ export interface GameCtx {
   playerMelee(def: MeleeWeaponDef): 'enemy' | 'wall' | 'none';
   muzzleFlash(big: boolean): void;
   /** Spawns a monster mid-fight (boss summons). World coordinates. */
-  summon(kind: EnemyKind, x: number, z: number): Enemy | null;
+  summon(kind: EnemyKind, x: number, z: number, opts?: { hpMul?: number; tracked?: boolean }): Enemy | null;
   /** Adds velocity to the player (shockwaves). */
   pushPlayer(v: Vector3): void;
   /** Telegraphed ground eruption: warning for `delay` seconds, then damages the player inside `radius`. */

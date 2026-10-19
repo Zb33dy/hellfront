@@ -16,6 +16,7 @@ import { LevelScene as LevelScene } from '../scenes/levelScene';
 import { LEVEL01 } from '../level/level01.data';
 import { getLevel, LEVEL_ORDER } from '../level/levels';
 import type { PlayerState } from '../entities/player';
+import { siegeBest } from '../scenes/siege';
 import type { LevelStats } from '../ui/levelComplete';
 
 export type GameState = 'boot' | 'bootReady' | 'menu' | 'loading' | 'ready' | 'playing' | 'paused' | 'dead' | 'complete' | 'chapter';
@@ -40,6 +41,10 @@ export class Game {
   allowUnlocked = false;
   private loadedFromSave = false;
   private settingsReturn: 'menu' | 'pause' = 'menu';
+  /** Radio lines waiting for the current one to finish. */
+  private voiceQueue: string[] = [];
+  private voiceBusyUntil = 0;
+  private voiceTimer = 0;
 
   constructor(canvas: HTMLCanvasElement, root: HTMLElement) {
     this.engine = createEngine(canvas);
@@ -103,6 +108,7 @@ export class Game {
 
   private applySettings(s: Settings): void {
     this.audio.setVolumes(s.master, s.sfx, s.voice);
+    this.audio.music.setVolume((s.music ?? 0.6) * 0.8);
     applyRenderScale(this.engine, s.renderScale);
     if (getLang() !== s.language) {
       setLang(s.language);
@@ -156,6 +162,8 @@ export class Game {
     this.ui.menu.show();
     this.state = 'menu';
     this.audio.muffle(false);
+    this.audio.music.play('hellfront');
+    this.audio.music.setIntensity('calm');
   }
 
   private openSettings(from: 'menu' | 'pause'): void {
@@ -178,9 +186,9 @@ export class Game {
     this.ui.hud.hide();
     this.ui.hud.reset();
     this.ui.subtitles.clear();
-    this.audio.stopVoice();
+    this.clearVoices();
     this.audio.muffle(false);
-    this.ui.loading.show({ title: `${t('chapter.n', { n: data.chapter })} — ${t(data.titleKey)}`, body: t(data.introKey) });
+    this.ui.loading.show({ title: data.chapter ? `${t('chapter.n', { n: data.chapter })} — ${t(data.titleKey)}` : t(data.titleKey), body: t(data.introKey) + (data.id === 'siege' ? `<br><br>${t('siege.bestLine', { n: siegeBest() })}` : '') });
     await nextFrame();
     this.level?.dispose();
     this.level = null;
@@ -201,10 +209,44 @@ export class Game {
   }
 
   voice(id: string): void {
-    const line = VOICE_LINES.find((l) => l.id === id);
-    if (!line) return;
+    if (!VOICE_LINES.some((l) => l.id === id)) return;
+    const now = performance.now();
+    if (now < this.voiceBusyUntil || this.voiceQueue.length) {
+      if (!this.voiceQueue.includes(id)) this.voiceQueue.push(id);
+      this.scheduleVoice();
+      return;
+    }
+    this.playLine(id);
+  }
+
+  private playLine(id: string): void {
+    const line = VOICE_LINES.find((l) => l.id === id)!;
     const dur = this.audio.playVoice(line);
+    this.voiceBusyUntil = performance.now() + (dur + 0.35) * 1000;
     if (this.settings.data.subtitles) this.ui.subtitles.show(t('subs.speaker'), lineText(line, getLang()), dur);
+    if (this.voiceQueue.length) this.scheduleVoice();
+  }
+
+  private scheduleVoice(): void {
+    clearTimeout(this.voiceTimer);
+    const wait = Math.max(0, this.voiceBusyUntil - performance.now());
+    this.voiceTimer = window.setTimeout(() => {
+      // paused / menus hold the queue until play resumes
+      if (this.state !== 'playing') {
+        this.voiceBusyUntil = performance.now() + 500;
+        this.scheduleVoice();
+        return;
+      }
+      const next = this.voiceQueue.shift();
+      if (next) this.playLine(next);
+    }, wait);
+  }
+
+  private clearVoices(): void {
+    this.voiceQueue.length = 0;
+    clearTimeout(this.voiceTimer);
+    this.voiceBusyUntil = 0;
+    this.audio.stopVoice();
   }
 
   pause(): void {
@@ -230,7 +272,8 @@ export class Game {
     this.state = 'dead';
     this.input.releaseLock();
     this.ui.navEnabled = true;
-    this.ui.death.show();
+    const sg = this.level?.siege;
+    this.ui.death.show(sg ? t('siege.dead', { n: sg.round, best: Math.max(sg.round, sg.best) }) : null);
     this.audio.muffle(true);
   }
 
@@ -252,7 +295,7 @@ export class Game {
     this.input.releaseLock();
     this.level?.dispose();
     this.level = null;
-    this.audio.stopVoice();
+    this.clearVoices();
     this.showMenu();
   }
 

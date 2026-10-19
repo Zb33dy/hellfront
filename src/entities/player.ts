@@ -28,7 +28,7 @@ export class Player {
   yaw = 0;
   pitch = 0;
   radius = PLAYER.radius;
-  height = PLAYER.height;
+  height: number = PLAYER.height;
   health = 100;
   armor = 0;
   ammo: Record<AmmoType, number> = { bullets: PICKUPS.startBullets, shells: 0, rounds: 0, grenades: 0 };
@@ -47,6 +47,8 @@ export class Player {
   roll = 0;
   recoil = 0;
   speed = 0;
+  /** 0 standing … 1 fully crouched (smoothed). */
+  crouch = 0;
 
   constructor(private world: World, private ev: PlayerEvents) {}
 
@@ -58,6 +60,8 @@ export class Player {
     this.pitch = 0;
     this.dead = false;
     this.eyeSmooth = 0;
+    this.crouch = 0;
+    this.height = PLAYER.height;
   }
 
   get eye(): Vector3 {
@@ -67,7 +71,7 @@ export class Player {
   get eyeY(): number {
     if (this.dead) return this.pos.y + Math.max(0.28, PLAYER.eye - this.deathTime * 2.4);
     const bob = Math.sin(this.bobPhase * 2) * 0.045 * this.bobAmount;
-    return this.pos.y + PLAYER.eye + this.eyeSmooth + bob - this.landDip;
+    return this.pos.y + PLAYER.eye - PLAYER.crouchEyeDrop * this.crouch + this.eyeSmooth + bob - this.landDip;
   }
 
   get forward(): Vector3 {
@@ -122,8 +126,17 @@ export class Player {
       wx /= wl;
       wz /= wl;
     }
-    const sprint = input.isDown('sprint');
-    const maxSpeed = PLAYER.walkSpeed * (sprint ? PLAYER.sprintMul : 1);
+    // crouch: hold to duck; stays down under low ceilings
+    let wantCrouch = input.isDown('crouch') && !this.noclip;
+    if (!wantCrouch && this.crouch > 0.05) {
+      const ceil = this.world.ceilAt(this.pos.x, this.pos.z, this.radius * 0.8);
+      if (ceil < this.pos.y + PLAYER.height) wantCrouch = true;
+    }
+    this.crouch = damp(this.crouch, wantCrouch ? 1 : 0, 12, dt);
+    if (Math.abs(this.crouch - (wantCrouch ? 1 : 0)) < 0.01) this.crouch = wantCrouch ? 1 : 0;
+    this.height = PLAYER.height - (PLAYER.height - PLAYER.crouchHeight) * this.crouch;
+    const sprint = input.isDown('sprint') && this.crouch < 0.3;
+    const maxSpeed = PLAYER.walkSpeed * (sprint ? PLAYER.sprintMul : 1) * (1 - (1 - PLAYER.crouchSpeedMul) * this.crouch);
 
     if (this.noclip) {
       const f = this.forward;

@@ -116,6 +116,7 @@ export class SettingsScreen {
       slider(t('settings.master'), 'master', 0, 1, 0.05, pct);
       slider(t('settings.sfx'), 'sfx', 0, 1, 0.05, pct);
       slider(t('settings.voice'), 'voice', 0, 1, 0.05, pct);
+      slider(t('settings.music'), 'music', 0, 1, 0.05, pct);
       toggle(t('settings.subtitles'), 'subtitles');
     } else if (this.tab === 'video') {
       slider(t('settings.fov'), 'fov', 60, 110, 1, (v) => `${v}°`);

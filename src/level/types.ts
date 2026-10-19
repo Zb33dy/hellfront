@@ -143,6 +143,8 @@ export interface LevelData {
   ambience: { nukage?: [number, number]; alarm?: boolean };
   dust?: Rect;
   fogColor?: RGB;
+  /** Soundtrack id (musicManager). */
+  music?: string;
   width: number;
   height: number;
   defaultWall: TileName;

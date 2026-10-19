@@ -1,5 +1,7 @@
 # HELLFRONT — The Hangar Seven Incident
 
+*A game by Hunk de Poitiers.*
+
 A PC browser FPS in the spirit of classic 90s shooters, built with **Babylon.js + Vite + strict TypeScript**.
 Retro pixel textures and sprites (all generated procedurally in code, no third-party art) with modern lighting,
 bloom and post-processing. Radio voice lines and sound effects were generated with ElevenLabs and ship as static files;
@@ -20,7 +22,7 @@ npm run build
 
 ## Controls
 
-WASD move · mouse look · LMB fire · RMB scope (rifle) · E use · 1/2/3/4 weapons · Z previous weapon · G frag grenade · Q focus (slows the world, not you) · Space jump · Shift sprint · Esc pause · F3 debug overlay · F4 noclip.
+WASD move · mouse look · LMB fire · RMB scope (rifle) · E use · 1/2/3/4 weapons · Z previous weapon · G frag grenade · Q focus (slows the world, not you) · C crouch · Space jump · Shift sprint · Esc pause · F3 debug overlay · F4 noclip.
 All bindings can be changed in Settings.
 
 ## Campaign
@@ -35,6 +37,14 @@ All bindings can be changed in Settings.
 
 Chapters can be started from **CHAPTERS** in the main menu; finishing a chapter carries your weapons, ammo and health into the next one.
 Checkpoints save automatically (localStorage). Subtitles in English and Turkish.
+
+## Siege mode
+
+Endless rounds in a walled arena. Each round spends a growing budget on monsters that pour out of eight gates; their health grows every round, and supplies respawn between rounds. Every fifth round the **Warhound** — a two-headed hellhound that pounces, double-bites and breathes fire — hunts alone, one more each time. Your best round is saved.
+
+## Music
+
+The soundtrack is original and synthesized live in Web Audio (src/audio/musicManager.ts): distorted power-chord guitars, palm mutes, synth drums, bass and an electronic lead in an industrial-metal style, with a dark ambient pad that crossfades in when nothing is hunting you.
 
 ## Layout
 

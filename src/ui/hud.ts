@@ -87,6 +87,8 @@ export class HUD {
   private focusFill: HTMLElement;
   private scopeEl: HTMLElement;
   private slowEl: HTMLElement;
+  private bannerEl: HTMLElement;
+  private bannerTimer = 0;
   readonly clickEl: HTMLElement;
   readonly viewLayer: HTMLElement;
   private cache: Record<string, string> = {};
@@ -118,6 +120,8 @@ export class HUD {
     this.scopeEl = h('div', { class: 'scope-overlay' }, [h('i')]);
     this.slowEl = h('div', { class: 'slowmo-overlay' });
     this.el.prepend(this.scopeEl, this.slowEl);
+    this.bannerEl = h('div', { class: 'round-banner' });
+    this.el.append(this.bannerEl);
     this.el.append(cross, this.hitEl, ring, this.msgEl, this.objEl, this.clickEl, this.bossEl, this.focusEl);
 
     const bar = h('div', { class: 'hud-bar' });
@@ -243,6 +247,18 @@ export class HUD {
     this.focusEl.classList.toggle('active', active);
     this.focusEl.classList.toggle('ready', frac >= 0.999);
     this.slowEl.classList.toggle('show', active);
+  }
+
+  /** Big centered announcement (Siege rounds). */
+  banner(title: string, sub: string): void {
+    this.bannerEl.innerHTML = '';
+    this.bannerEl.append(h('b', { text: title }));
+    if (sub) this.bannerEl.append(h('span', { text: sub }));
+    this.bannerEl.classList.remove('show');
+    void this.bannerEl.offsetWidth;
+    this.bannerEl.classList.add('show');
+    clearTimeout(this.bannerTimer);
+    this.bannerTimer = window.setTimeout(() => this.bannerEl.classList.remove('show'), 2600);
   }
 
   setScope(on: boolean): void {

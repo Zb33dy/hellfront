@@ -1,10 +1,10 @@
 import type { Lang } from './i18n';
 
 export type Action =
-  | 'forward' | 'back' | 'left' | 'right' | 'jump' | 'sprint' | 'use'
+  | 'forward' | 'back' | 'left' | 'right' | 'jump' | 'sprint' | 'crouch' | 'use'
   | 'weapon1' | 'weapon2' | 'weapon3' | 'weapon4' | 'lastWeapon' | 'grenade' | 'focus' | 'pause';
 
-export const ACTIONS: Action[] = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'use', 'weapon1', 'weapon2', 'weapon3', 'weapon4', 'lastWeapon', 'grenade', 'focus', 'pause'];
+export const ACTIONS: Action[] = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'crouch', 'use', 'weapon1', 'weapon2', 'weapon3', 'weapon4', 'lastWeapon', 'grenade', 'focus', 'pause'];
 
 export const DEFAULT_BINDINGS: Record<Action, string> = {
   forward: 'KeyW',
@@ -13,6 +13,7 @@ export const DEFAULT_BINDINGS: Record<Action, string> = {
   right: 'KeyD',
   jump: 'Space',
   sprint: 'ShiftLeft',
+  crouch: 'KeyC',
   use: 'KeyE',
   weapon1: 'Digit1',
   weapon2: 'Digit2',
@@ -28,6 +29,7 @@ export interface Settings {
   master: number;
   sfx: number;
   voice: number;
+  music: number;
   sensitivity: number;
   invertY: boolean;
   fov: number;
@@ -47,6 +49,7 @@ export function defaultSettings(): Settings {
     master: 0.8,
     sfx: 0.8,
     voice: 0.9,
+    music: 0.6,
     sensitivity: 1.0,
     invertY: false,
     fov: 90,

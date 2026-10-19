@@ -50,13 +50,17 @@ export class MenuScreen {
       }, s),
       (this.continueBtn = button(t('menu.continue'), () => this.cb.onContinue(), s)),
       button(t('menu.chapters'), () => this.open('chapters'), s),
+      button(t('menu.siege'), () => {
+        this.pendingLevel = 'siege';
+        this.open('difficulty');
+      }, s),
       button(t('menu.settings'), () => this.cb.onSettings(), s),
       button(t('menu.credits'), () => this.open('credits'), s),
       button(t('menu.quit'), () => this.open('quit'), s),
     ];
     list.append(...items);
     left.append(list);
-    left.append(h('div', { class: 'menu-foot', html: 'v0.1 · WASD + MOUSE · ESC PAUSE<br>© HELLFRONT TEAM — ORIGINAL ASSETS' }));
+    left.append(h('div', { class: 'menu-foot', html: 'v0.3 · WASD + MOUSE · ESC PAUSE<br>A GAME BY HUNK DE POITIERS · ORIGINAL ASSETS' }));
     this.el.append(left);
     this.mainNav = new MenuNav(items, s, null);
 

@@ -61,6 +61,12 @@ export const CAMPAIGN_LINES: VoiceLine[] = [
   v('v4_complete', 'We are building a return window on your beacon. Buy us time. Kill whatever sits on that throne.',
     'İşaretçin üzerinden bir dönüş penceresi kuruyoruz. Bize zaman kazandır. O tahtta ne oturuyorsa öldür.'),
 
+  // Siege mode
+  v('vs_start', 'Siege protocol. They come in waves, marine. Hold the arena as long as you can.',
+    'Kuşatma protokolü. Dalga dalga geliyorlar asker. Arenayı tutabildiğin kadar tut.'),
+  v('vs_hound', 'Warhound inbound! Two heads, one appetite. Keep moving!',
+    'Savaş tazısı geliyor! İki kafa, tek açlık. Hareket etmeyi bırakma!'),
+
   // Chapter 5 — Throne of Ash
   v('v5_intro', 'This is the last push, Hellfront. Window is at forty percent and climbing.',
     'Bu son hamle, Hellfront. Pencere yüzde kırkta ve yükseliyor.'),

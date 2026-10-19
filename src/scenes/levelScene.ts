@@ -36,6 +36,8 @@ import { Executioner } from '../entities/executioner';
 import { BreachCore } from '../entities/breachCore';
 import { Wraith } from '../entities/wraith';
 import { Sovereign } from '../entities/sovereign';
+import { Warhound } from '../entities/warhound';
+import { SiegeController } from './siege';
 import type { PlayerState } from '../entities/player';
 import { Projectiles } from '../entities/projectile';
 import { Grenades } from '../entities/grenade';
@@ -63,6 +65,7 @@ function makeEnemy(kind: EnemyKind, x: number, z: number, angle: number, hpMul: 
     case 'core': return new BreachCore(x, z, angle, hpMul);
     case 'wraith': return new Wraith(x, z, angle, hpMul);
     case 'sovereign': return new Sovereign(x, z, angle, hpMul);
+    case 'warhound': return new Warhound(x, z, angle, hpMul);
   }
 }
 
@@ -117,7 +120,9 @@ export class LevelScene implements GameCtx {
   private initialPickups = 0;
   private lavaCells = new Set<number>();
   private summoned = new Set<Enemy>();
-  private boss: Enemy | null = null;
+  boss: Enemy | null = null;
+  siege: SiegeController | null = null;
+  private combatHold = 0;
   private bossShown = false;
   private hazards: { pos: Vector3; t: number; delay: number; radius: number; damage: number }[] = [];
   started = false;
@@ -126,10 +131,10 @@ export class LevelScene implements GameCtx {
     private engine: Engine,
     readonly data: LevelData,
     readonly difficulty: Difficulty,
-    private audio: AudioManager,
-    private ui: UIManager,
+    readonly audio: AudioManager,
+    readonly ui: UIManager,
     private settings: () => Settings,
-    private hooks: LevelHooks,
+    readonly hooks: LevelHooks,
   ) {
     this.diff = DIFFICULTY[difficulty];
     this.scene = new Scene(engine);
@@ -252,6 +257,7 @@ export class LevelScene implements GameCtx {
     for (const z of this.data.zones) if (z.lava) this.built.grid.eachRect(z.rect, (i) => this.lavaCells.add(i));
     if (this.data.fogColor) this.lights.fogColor.set(...this.data.fogColor);
     this.boss = this.enemies.find((e) => e.def.bossName) ?? null;
+    if (this.data.id === 'siege') this.siege = new SiegeController(this);
     this.totalKills = this.enemies.length;
     this.initialPickups = this.pickups.length;
     this.totalItems = this.pickups.length;
@@ -286,7 +292,7 @@ export class LevelScene implements GameCtx {
     p.applyState({ health: l.health, armor: l.armor, ammo: { bullets: l.bullets, shells: l.shells, rounds: l.rounds ?? 0, grenades: l.grenades ?? 0 }, weapons: [...l.weapons], keys: [] });
   }
 
-  summon(kind: EnemyKind, x: number, z: number): Enemy | null {
+  summon(kind: EnemyKind, x: number, z: number, opts: { hpMul?: number; tracked?: boolean } = {}): Enemy | null {
     const g = this.world.grid;
     // find open floor near the requested spot
     let px = x, pz = z;
@@ -298,13 +304,13 @@ export class LevelScene implements GameCtx {
       px = x + Math.sin(a) * (2 + tries * 0.6);
       pz = z + Math.cos(a) * (2 + tries * 0.6);
     }
-    const e = makeEnemy(kind, px, pz, 0, this.diff.enemyHealth);
+    const e = makeEnemy(kind, px, pz, 0, opts.hpMul ?? this.diff.enemyHealth);
     e.pos.y = this.world.groundAt(px, pz, e.radius, 10, 20);
     e.spawn.y = e.pos.y;
     e.setState('alert');
     e.lastSeen = this.player.pos.clone();
     this.enemies.push(e);
-    this.summoned.add(e);
+    if (opts.tracked !== false) this.summoned.add(e);
     this.telefogs.push({ pos: e.pos.clone(), t: 0 });
     this.particles.emit('teleport', e.pos.add(new Vector3(0, 1, 0)), new Vector3(0, 1, 0), 30, 1);
     this.lights.addFx(e.pos.add(new Vector3(0, 1.2, 0)), new Color3(1, 0.3, 0.3), 2.2, 6, 0.6);
@@ -317,6 +323,19 @@ export class LevelScene implements GameCtx {
     this.focusOn = on;
     this.audio.play('teleport', { pitch: on ? 0.45 : 0.8, volume: 0.6 });
     if (on) this.ui.hud.flash('gold', 0.15);
+  }
+
+  /** Siege: every original pickup comes back between rounds. */
+  refreshPickups(): void {
+    for (const k of this.pickups) if (k.index < this.initialPickups && k.taken) k.taken = false;
+  }
+
+  /** Siege: drop long-dead corpses so the arena stays readable and fast. */
+  clearDead(): void {
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const e = this.enemies[i];
+      if (e.state === 'dead' && e.deathT > 3) this.enemies.splice(i, 1);
+    }
   }
 
   pushPlayer(v: Vector3): void {
@@ -391,8 +410,11 @@ export class LevelScene implements GameCtx {
     if (amb.nukage) this.loops.push(this.sound('amb_nukage', new Vector3(amb.nukage[0] * CELL, 0, amb.nukage[1] * CELL), { loop: true, refDistance: 8, pitch: this.data.chapter > 1 ? 0.6 : 1 }));
     this.weapons.reset(this.player.weapons.has('shotgun') && this.player.ammo.shells > 0 ? 'shotgun' : 'pistol');
     this.weapons.weapon.select(this);
+    this.audio.music.play(this.data.music ?? 'hellfront');
+    this.audio.music.setIntensity('calm');
     if (!fromSave) this.triggers.start();
     else if (this.objective) this.ui.hud.objective(t(this.objective));
+    this.siege?.start();
     this.syncHud();
   }
 
@@ -454,6 +476,10 @@ export class LevelScene implements GameCtx {
     e.damage(amount, d, kind, this);
     if (!e.alive) {
       if (!this.summoned.has(e)) this.kills++;
+      if (this.siege && Math.random() < 0.22) {
+        const drops: PickupKind[] = ['shells', 'rounds', 'bulletClip', 'healthSmall', 'grenades', 'healthSmall'];
+        this.spawnDrop(drops[Math.floor(Math.random() * drops.length)], e.pos);
+      }
       else if (Math.random() < 0.7) {
         const drops: PickupKind[] = ['shells', 'rounds', 'bulletClip', 'healthSmall', 'grenades', 'shells', 'rounds'];
         this.spawnDrop(drops[Math.floor(Math.random() * drops.length)], e.pos);
@@ -926,6 +952,8 @@ export class LevelScene implements GameCtx {
     this.checkWaves();
     this.updateBoss();
     this.updateHazards(wdt);
+    this.updateMusic(dt);
+    this.siege?.update(dt, wdt);
     for (const tf of this.telefogs) tf.t += wdt;
     this.telefogs = this.telefogs.filter((tf) => tf.t < 0.5);
 
@@ -1048,11 +1076,22 @@ export class LevelScene implements GameCtx {
   }
 
   private updateBoss(): void {
+    if (this.siege) this.boss = this.enemies.find((e) => e.kind === 'warhound' && (e.alive || e.deathT < 1.5)) ?? null;
     const b = this.boss;
     const show = !!b && b.state !== 'dormant' && b.state !== 'idle' && (b.alive || b.deathT < 1.5);
     if (show && b) this.ui.hud.setBoss(b.def.bossName!, b.hp / b.maxHp);
     else if (this.bossShown) this.ui.hud.setBoss(null, 0);
     this.bossShown = show;
+  }
+
+  /** Calm pad while exploring, the full band once something is hunting you. */
+  private updateMusic(dt: number): void {
+    if (this.siege) return; // siege drives its own intensity
+    const p = this.player;
+    const hunting = !p.dead && this.enemies.some((e) => (e.state === 'chase' || e.state === 'attack') && Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z) < 45);
+    if (hunting) this.combatHold = 5;
+    else this.combatHold -= dt;
+    this.audio.music.setIntensity(this.completed || p.dead ? 'calm' : this.combatHold > 0 ? 'combat' : 'calm');
   }
 
   private checkWaves(): void {

@@ -10,6 +10,7 @@ export interface DeathCallbacks {
 export class DeathScreen {
   readonly el = h('div', { class: 'screen overlay', id: 'death' });
   nav!: MenuNav;
+  private flavor: string | null = null;
 
   constructor(private cb: DeathCallbacks, private sound: (s: UISound) => void) {
     this.render();
@@ -18,7 +19,7 @@ export class DeathScreen {
   render(): void {
     this.el.innerHTML = '';
     this.el.append(h('div', { class: 'died', text: t('death.title') }));
-    this.el.append(h('div', { class: 'death-flavor', text: t('death.flavor') }));
+    this.el.append(h('div', { class: 'death-flavor', text: this.flavor ?? t('death.flavor') }));
     const box = h('div', { class: 'death-box plate' });
     const s = this.sound;
     const items = [
@@ -31,7 +32,8 @@ export class DeathScreen {
     this.nav = new MenuNav(items, s, null);
   }
 
-  show(): void {
+  show(flavor: string | null = null): void {
+    this.flavor = flavor;
     this.render();
     this.el.classList.add('show');
   }
