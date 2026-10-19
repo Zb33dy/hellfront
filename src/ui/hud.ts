@@ -69,8 +69,7 @@ export class HUD {
   private arNum: HTMLElement;
   private armsEls: HTMLElement[] = [];
   private keyEls: Record<KeyColor, HTMLElement>;
-  private resRows: Record<AmmoType, HTMLElement>;
-  private resVals: Record<AmmoType, HTMLElement>;
+  private grenNum: HTMLElement;
   private hitEl: HTMLElement;
   private dmgEls: HTMLElement[] = [];
   private dmgTimers: number[] = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -171,30 +170,14 @@ export class HUD {
     const c5 = cell();
     this.arNum = h('div', { class: 'hud-num', text: '0%' });
     c5.append(this.arNum, label('hud.armor'));
+    // grenades, with keycards shown only once you carry them
     const c6 = cell();
     const keys = h('div', { class: 'keys' });
     this.keyEls = { red: h('i', { class: 'red' }), blue: h('i', { class: 'blue' }), yellow: h('i', { class: 'yellow' }) };
     keys.append(this.keyEls.blue, this.keyEls.yellow, this.keyEls.red);
-    c6.append(keys);
-    const c7 = cell();
-    const table = h('div', { class: 'ammo-table' });
-    const row = (name: string) => {
-      const v = h('span');
-      const r = h('div', {}, [h('span', { text: name }), v]);
-      table.append(r);
-      return [r, v] as const;
-    };
-    const [rb, vb] = row('BULL');
-    const [rs, vs] = row('SHEL');
-    const [rr, vr] = row('RNDS');
-    const [rk, vk] = row('RCKT');
-    const [rt, vt] = row('BOLT');
-    const [rf, vf] = row('FUEL');
-    const [rg, vg] = row('GREN');
-    this.resRows = { bullets: rb, shells: rs, rounds: rr, rockets: rk, bolts: rt, fuel: rf, grenades: rg };
-    this.resVals = { bullets: vb, shells: vs, rounds: vr, rockets: vk, bolts: vt, fuel: vf, grenades: vg };
-    c7.append(table);
-    bar.append(c1, c2, c3, c4, c5, c6, c7);
+    this.grenNum = h('div', { class: 'hud-num small', text: '0' });
+    c6.append(keys, this.grenNum, label('hud.grenades'));
+    bar.append(c1, c2, c3, c4, c5, c6);
     this.el.append(bar);
   }
 
@@ -229,16 +212,8 @@ export class HUD {
     this.setText('am', this.ammoNum, v === null ? '—' : String(v), true);
   }
 
-  setReserves(r: Record<AmmoType, number>, max: Record<AmmoType, number>, current: AmmoType | null, used?: Set<AmmoType>): void {
-    for (const k of ['bullets', 'shells', 'rounds', 'rockets', 'bolts', 'fuel', 'grenades'] as AmmoType[]) {
-      this.resRows[k].style.display = !used || used.has(k) ? '' : 'none';
-      const s = `${r[k]}<b>/${max[k]}</b>`;
-      if (this.cache['res' + k] !== s) {
-        this.cache['res' + k] = s;
-        this.resVals[k].innerHTML = s;
-      }
-      this.resRows[k].classList.toggle('cur', current === k);
-    }
+  setReserves(r: Record<AmmoType, number>): void {
+    this.setText('gren', this.grenNum, String(r.grenades), true);
   }
 
   setArms(owned: Set<WeaponId>, current: WeaponId): void {
@@ -289,6 +264,8 @@ export class HUD {
   }
 
   styleBonus(text: string): void {
+    // single line, replaced by the next bonus: less noise than a scrolling feed
+    this.styleFeed.innerHTML = '';
     const d = h('div', { text });
     this.styleFeed.prepend(d);
     while (this.styleFeed.children.length > 4) this.styleFeed.lastChild!.remove();
@@ -364,7 +341,7 @@ export class HUD {
   objective(text: string): void {
     this.objEl.innerHTML = '';
     if (!text) return;
-    this.objEl.append(h('b', { text: t('obj.label') }), h('span', { text }));
+    this.objEl.append(h('span', { text }));
     this.objEl.classList.remove('new');
     void this.objEl.offsetWidth;
     this.objEl.classList.add('new');

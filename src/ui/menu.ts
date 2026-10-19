@@ -139,6 +139,7 @@ export class MenuScreen {
 
   open(which: 'none' | 'difficulty' | 'chapters' | 'modes' | 'credits' | 'quit', silent = false): void {
     this.sub = which;
+    this.el.classList.toggle('sub-open', which !== 'none');
     for (const [k, p] of Object.entries(this.panels)) p.classList.toggle('show', k === which);
     this.nav = which === 'difficulty' ? this.diffNav : which === 'chapters' ? this.chapNav : which === 'modes' ? this.modesNav : which === 'credits' ? this.creditsNav : which === 'quit' ? this.quitNav : this.mainNav;
     if (which === 'quit' && !silent) {

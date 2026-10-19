@@ -90,6 +90,7 @@ export const EXTRA_EN: Record<string, string> = {
   'obj6.exit': 'Step through the window home.',
   'msg6.islands': 'Supplies on the islands — dash-jump or rocket-jump across.',
   'subs.archon': 'THE ARCHON',
+  'hud.grenades': 'GRENADES',
   // @end-en
 };
 
@@ -182,5 +183,6 @@ export const EXTRA_TR: Record<string, string> = {
   'obj6.exit': 'Eve dönüş penceresinden geç.',
   'msg6.islands': 'Adalarda ikmal var — atılıp zıpla ya da roketle zıpla.',
   'subs.archon': 'ARKON',
+  'hud.grenades': 'BOMBA',
   // @end-tr
 };

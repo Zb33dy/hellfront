@@ -252,6 +252,7 @@ html, body {
 }
 .menu-list { width: min(460px, 38vw); margin-top: 4vh; flex: 0 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: none; }
 .menu-list::-webkit-scrollbar { display: none; }
+#menu.sub-open .menu-list { opacity: .3; filter: grayscale(.6); transition: opacity .2s; pointer-events: none; }
 /* the menu must fit the window height: everything scales with vh as well as vw */
 .menu-left { height: 100vh; box-sizing: border-box; padding-top: 5vh; width: min(640px, 48vw); }
 .menu-left .logo { font-size: clamp(32px, min(7vw, 11vh), 100px); }
@@ -424,7 +425,7 @@ html, body {
 .hud-bar {
   height: var(--hud-h);
   display: grid;
-  grid-template-columns: 1.15fr 1.25fr 1fr 0.95fr 1.25fr 0.7fr 1.5fr;
+  grid-template-columns: 1.2fr 1.3fr 1fr 0.95fr 1.3fr 0.9fr;
   background-color: #2d3036;
   background-image: linear-gradient(180deg, rgba(255,255,255,.07), rgba(0,0,0,.4)), var(--tex-metal);
   background-size: auto, calc(var(--hud-h) * 1.2) calc(var(--hud-h) * 1.2);
@@ -485,11 +486,13 @@ html, body {
 .face-cell canvas { height: 92%; width: auto; image-rendering: pixelated; }
 .face-cell.hit { animation: facehit .25s; }
 @keyframes facehit { 0% { background: #a01008; } 100% { } }
-.keys { display: flex; flex-direction: column; gap: calc(var(--px) * 2); }
+.keys { display: flex; gap: calc(var(--px) * 2); position: absolute; top: calc(var(--px) * 4); }
+.keys i:not(.have) { display: none; }
+.hud-num.small { font-size: calc(var(--hud-h) * 0.28); color: #e7c46a; text-shadow: calc(var(--px)) calc(var(--px)) 0 #000; }
 .keys i {
   display: block;
-  width: calc(var(--hud-h) * 0.32);
-  height: calc(var(--hud-h) * 0.16);
+  width: calc(var(--hud-h) * 0.18);
+  height: calc(var(--hud-h) * 0.1);
   border: calc(var(--px)) solid #0c0c0c;
   background: #1a1b1e;
   opacity: .5;
@@ -580,7 +583,7 @@ html, body {
   text-align: right;
   pointer-events: none;
 }
-.objective b {
+.objective b, .objective-label {
   display: block;
   font-family: var(--font-head);
   font-size: 10px;
@@ -589,7 +592,7 @@ html, body {
   margin-bottom: 4px;
   text-shadow: 1px 1px 0 #000;
 }
-.objective span { font-size: 26px; color: #f2e6d0; text-shadow: 2px 2px 0 #000; }
+.objective span { font-size: 21px; color: #e9dcc4; text-shadow: 2px 2px 0 #000; opacity: .9; }
 .objective.new span { animation: objnew 1.2s; }
 @keyframes objnew { 0%, 40% { color: #fff; text-shadow: 0 0 14px #7dff6a; } }
 
@@ -775,13 +778,13 @@ html, body {
 }
 
 .style-meter {
-  position: absolute; right: 22px; top: 34%;
-  width: 230px; text-align: right; pointer-events: none;
+  position: absolute; right: 22px; top: 36%;
+  width: 150px; text-align: right; pointer-events: none;
   opacity: 0; transform: translateX(20px); transition: opacity .3s, transform .3s;
 }
 .style-meter.show { opacity: 1; transform: none; }
 .style-meter b {
-  display: block; font-family: var(--font-head); font-size: 64px; line-height: 1;
+  display: block; font-family: var(--font-head); font-size: 46px; line-height: 1;
   color: #c9c3b6; text-shadow: 4px 4px 0 #000;
 }
 .style-meter b.pop { animation: stylepop .35s; }
@@ -791,8 +794,8 @@ html, body {
 .style-meter[data-rank="4"] b, .style-meter[data-rank="5"] b { color: #ff7a2a; text-shadow: 4px 4px 0 #000, 0 0 20px #ff3a0a; }
 .style-meter[data-rank="6"] b { color: #ff2a2a; text-shadow: 4px 4px 0 #000, 0 0 26px #ff0000; animation: sss 0.6s infinite alternate; }
 @keyframes sss { from { filter: brightness(1); } to { filter: brightness(1.5); } }
-.style-name { display: block; font-family: var(--font-head); font-size: 11px; letter-spacing: 2px; color: #ffd2a0; text-shadow: 2px 2px 0 #000; margin: 4px 0 6px; }
-.style-track { height: 6px; background: rgba(0,0,0,.6); border: 1px solid #3a1a10; }
+.style-name { display: none; font-family: var(--font-head); font-size: 11px; letter-spacing: 2px; color: #ffd2a0; text-shadow: 2px 2px 0 #000; margin: 4px 0 6px; }
+.style-track { height: 4px; margin-top: 6px; background: rgba(0,0,0,.6); border: 1px solid #3a1a10; }
 .style-track i { display: block; height: 100%; background: linear-gradient(90deg, #ff3a0a, #ffd24a); }
 .style-feed { margin-top: 6px; font-family: var(--font-head); font-size: 10px; color: #fff; text-shadow: 2px 2px 0 #000; letter-spacing: 1px; }
 .style-feed div { transition: opacity .5s; margin-top: 3px; }

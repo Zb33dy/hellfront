@@ -1736,12 +1736,7 @@ export class LevelScene implements GameCtx {
     hud.setArmor(p.armor);
     const at = this.weapons.ammoType;
     hud.setAmmo(at ? p.ammo[at] : null);
-    const used = new Set<AmmoType>(['grenades']);
-    for (const w of p.weapons) {
-      const a = this.weapons.weapons[w].ammo;
-      if (a) used.add(a);
-    }
-    hud.setReserves(p.ammo, AMMO_MAX, at, used);
+    hud.setReserves(p.ammo);
     hud.setArms(p.weapons, this.weapons.current);
     hud.setKeys(p.keys);
   }
