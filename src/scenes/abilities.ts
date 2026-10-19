@@ -75,6 +75,11 @@ export class AbilityController {
 
   constructor(private L: LevelScene) {}
 
+  /** In the air with the jump pack: Q slams down. */
+  get slamReady(): boolean {
+    return this.id === 'jumppack' && this.jumpPhase === 'air';
+  }
+
   equip(id: AbilityId): void {
     this.id = id;
     this.meter = 1;
@@ -137,7 +142,15 @@ export class AbilityController {
           L.audio.play('teleport', { pitch: this.id === 'cloak' ? 1.6 : 0.6, volume: 0.6 });
           if (this.id === 'cloak') {
             L.playerHidden = true;
-            for (const e of L.enemies) e.seesPlayer = false;
+            // everyone loses you: attacks in progress are cancelled, the hunt goes to where you WERE
+            for (const e of L.enemies) {
+              e.seesPlayer = false;
+              if (!e.alive) continue;
+              const off = new Vector3((Math.random() - 0.5) * 12, 0, (Math.random() - 0.5) * 12);
+              e.lastSeen = p.pos.add(off);
+              if (e.state === 'attack') e.setState('chase');
+              e.parryTell = e.dangerTell = 0;
+            }
           }
           L.ui.hud.setAbilityFx(this.id);
         }

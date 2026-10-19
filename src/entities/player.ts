@@ -74,6 +74,8 @@ export class Player {
     this.pitch = 0;
     this.dead = false;
     this.eyeSmooth = 0;
+    this.roll = 0;
+    this.recoil = 0;
     this.crouch = 0;
     this.height = PLAYER.height;
   }
@@ -280,7 +282,7 @@ export class Player {
         this.ev.onStep(metal, kind === CellKind.Nukage);
       }
     }
-    this.roll = damp(this.roll, -str * 0.012, 8, dt);
+    this.roll = Math.max(-0.03, Math.min(0.03, damp(this.roll, -str * 0.012, 8, dt)));
 
     // nukage burns
     const ci = this.world.grid.cellAt(this.pos.x, this.pos.z);

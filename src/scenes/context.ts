@@ -13,6 +13,7 @@ import type { ScreenShake } from '../fx/screenShake';
 import type { NavField } from '../ai/navigation';
 import type { Projectiles } from '../entities/projectile';
 import type { PickupKind } from '../level/types';
+import type { RocketOpts } from '../entities/rocket';
 
 export type DamageKind = 'bullet' | 'pellet' | 'melee' | 'fireball' | 'blast' | 'saw' | 'flame';
 
@@ -59,7 +60,15 @@ export interface GameCtx {
   playerMelee(def: MeleeWeaponDef): 'enemy' | 'wall' | 'none';
   muzzleFlash(big: boolean): void;
   /** Launches a player rocket from the eye. */
-  fireRocket(): void;
+  fireRocket(opts?: RocketOpts): void;
+  /** Launcher's guiding laser (right click toggles). */
+  laserOn: boolean;
+  /** Where the laser dot sits this frame (null when off). */
+  readonly laserPoint: Vector3 | null;
+  /** Chainsword whirlwind: damages everything within `radius`; returns how many were hit. */
+  playerSpin(radius: number, damage: number): number;
+  /** Bolter overcharge: a piercing beam that hits every monster along the aim line. */
+  playerBeam(damage: number): void;
   /** Hellflamer cone in front of the player (one tick). */
   playerFlame(): void;
   /** Spawns a monster mid-fight (boss summons). World coordinates. */

@@ -79,7 +79,7 @@ export class Projectiles {
       const b = this.balls[i];
       b.life -= dt;
       b.t += dt;
-      if (b.homing > 0 && !ctx.player.dead) {
+      if (b.homing > 0 && !ctx.player.dead && !ctx.playerHidden) {
         // steer toward where the player is now (slow orbs: dodge with cover or a timed jump)
         const to = ctx.player.pos.add(new Vector3(0, 1, 0)).subtract(b.pos).normalize();
         const cur = b.vel.normalizeToNew();

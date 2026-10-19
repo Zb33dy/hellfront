@@ -1,7 +1,7 @@
 import { Vector3 } from '@babylonjs/core';
 import { WEAPONS } from '../core/config';
 import type { GameCtx } from '../scenes/context';
-import type { Weapon, WeaponFrameState } from './weapon';
+import type { AltInput, Weapon, WeaponFrameState } from './weapon';
 
 export class Pistol implements Weapon {
   readonly id = 'pistol' as const;
@@ -9,9 +9,34 @@ export class Pistol implements Weapon {
   readonly ammoPerShot = WEAPONS.pistol.ammoPerShot;
   readonly interval = WEAPONS.pistol.fireInterval;
   sinceFire = 10;
+  private burstLeft = 0;
+  private burstT = 0;
 
-  fire(ctx: GameCtx): void {
-    const d = WEAPONS.pistol;
+  /** Right click: three quick rounds. */
+  alt(dt: number, ctx: GameCtx, rmb: AltInput): number {
+    const p = ctx.player;
+    if (this.burstLeft <= 0) {
+      if (!rmb.pressed || !rmb.ready) return 0;
+      if (p.ammo.bullets < 1) {
+        ctx.sound('weapon_empty');
+        return 0;
+      }
+      this.burstLeft = Math.min(3, p.ammo.bullets);
+      this.burstT = 0;
+    }
+    this.burstT -= dt;
+    if (this.burstT <= 0 && this.burstLeft > 0) {
+      p.ammo.bullets--;
+      this.burstLeft--;
+      this.burstT = 0.07;
+      this.fire(ctx, 1.6);
+      this.sinceFire = 0;
+    }
+    return this.burstLeft > 0 ? 0.2 : 0.5;
+  }
+
+  fire(ctx: GameCtx, spreadMul = 1): void {
+    const d = spreadMul === 1 ? WEAPONS.pistol : { ...WEAPONS.pistol, spread: WEAPONS.pistol.spread * spreadMul };
     ctx.sound('pistol_fire');
     ctx.muzzleFlash(false);
     ctx.playerShot(d);
@@ -37,5 +62,7 @@ export class Pistol implements Weapon {
   }
 
   select(): void {}
-  deselect(): void {}
+  deselect(): void {
+    this.burstLeft = 0;
+  }
 }

@@ -1,7 +1,7 @@
 import { Vector3 } from '@babylonjs/core';
 import { WEAPONS } from '../core/config';
 import type { GameCtx } from '../scenes/context';
-import type { Weapon, WeaponFrameState } from './weapon';
+import type { AltInput, Weapon, WeaponFrameState } from './weapon';
 
 export class Shotgun implements Weapon {
   readonly id = 'shotgun' as const;
@@ -11,6 +11,37 @@ export class Shotgun implements Weapon {
   sinceFire = 10;
   private pumped = true;
   private ejected = true;
+  private double = false;
+  private pumped2 = true;
+
+  /** Right click: both barrels' worth — two shells, double the pellets, then two pumps. */
+  alt(_dt: number, ctx: GameCtx, rmb: AltInput): number {
+    if (!rmb.pressed || !rmb.ready) return 0;
+    const p = ctx.player;
+    if (p.ammo.shells < 2) {
+      ctx.sound('weapon_empty');
+      return 0;
+    }
+    p.ammo.shells -= 2;
+    const d = WEAPONS.shotgun;
+    ctx.sound('shotgun_fire', null, { volume: 1.2 });
+    ctx.sound('shotgun_fire', null, { pitch: 0.75, volume: 0.9 });
+    ctx.muzzleFlash(true);
+    ctx.playerShot({ ...d, pellets: 18, spread: d.spread * 1.35, damageMin: 8, damageMax: 12 });
+    p.recoil += d.recoil * 1.8;
+    ctx.shake.add(d.shake * 1.7);
+    ctx.noise(p.pos, d.noise + 6);
+    // kickback
+    const f = p.forward;
+    p.vel.x -= f.x * 3.5;
+    p.vel.z -= f.z * 3.5;
+    this.sinceFire = 0;
+    this.pumped = false;
+    this.ejected = false;
+    this.double = true;
+    this.pumped2 = false;
+    return 1.45;
+  }
 
   fire(ctx: GameCtx): void {
     const d = WEAPONS.shotgun;
@@ -22,6 +53,7 @@ export class Shotgun implements Weapon {
     ctx.noise(ctx.player.pos, d.noise);
     this.pumped = false;
     this.ejected = false;
+    this.double = false;
   }
 
   update(dt: number, ctx: GameCtx): void {
@@ -29,6 +61,10 @@ export class Shotgun implements Weapon {
     if (!this.pumped && this.sinceFire > 0.3) {
       this.pumped = true;
       ctx.sound('shotgun_pump');
+    }
+    if (this.double && !this.pumped2 && this.sinceFire > 0.78) {
+      this.pumped2 = true;
+      ctx.sound('shotgun_pump', null, { pitch: 0.92 });
     }
     if (!this.ejected && this.sinceFire > 0.42) {
       this.ejected = true;
@@ -50,6 +86,8 @@ export class Shotgun implements Weapon {
     else if (t < 0.45) frame = 'pump2';
     else if (t < 0.62) frame = 'pump1';
     else if (t < 0.75) frame = 'pump2';
+    else if (this.double && t < 0.92) frame = 'pump1';
+    else if (this.double && t < 1.08) frame = 'pump2';
     return { frame, flash: t < 0.06 ? 2 : 0, kick, jitter: 0 };
   }
 

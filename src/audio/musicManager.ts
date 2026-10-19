@@ -221,8 +221,22 @@ export class MusicManager {
     delay.connect(lout);
   }
 
+  private volume = 0.55;
+  private paused = false;
+
   setVolume(v: number): void {
-    this.bus.gain.value = v;
+    this.volume = v;
+    if (!this.paused) this.bus.gain.value = v;
+  }
+
+  /** Silences the score while the game is paused (keeps its place). */
+  setPaused(on: boolean): void {
+    if (on === this.paused) return;
+    this.paused = on;
+    const t = this.ctx.currentTime;
+    this.bus.gain.cancelScheduledValues(t);
+    this.bus.gain.setValueAtTime(this.bus.gain.value, t);
+    this.bus.gain.linearRampToValueAtTime(on ? 0 : this.volume, t + (on ? 0.25 : 0.6));
   }
 
   /** Starts (or keeps) a song; intensity decides what is audible. */

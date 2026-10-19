@@ -118,6 +118,10 @@ export class WeaponSystem {
         this.request(this.bestWithAmmo(ctx), ctx);
       }
     }
+    if (w.alt && this.phase === 'ready' && !p.dead) {
+      const lock = w.alt(dt, ctx, { down: input.rightDown, pressed: input.rightPressed, released: input.rightReleased, ready: this.cooldown <= 0 });
+      if (lock > 0) this.cooldown = Math.max(this.cooldown, lock);
+    }
     for (const id of WEAPON_SLOTS) this.weapons[id].update(dt, ctx, holding && id === this.current && this.phase === 'ready', id === this.current && !p.dead);
 
     // sway follows mouse motion, springs back

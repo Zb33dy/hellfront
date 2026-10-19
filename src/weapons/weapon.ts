@@ -11,6 +11,14 @@ export interface WeaponFrameState {
   jitter: number;
 }
 
+/** Right mouse button this frame. `ready` = the primary is off cooldown. */
+export interface AltInput {
+  down: boolean;
+  pressed: boolean;
+  released: boolean;
+  ready: boolean;
+}
+
 export interface Weapon {
   readonly id: WeaponId;
   readonly ammo: AmmoType | null;
@@ -23,4 +31,6 @@ export interface Weapon {
   frameState(): WeaponFrameState;
   select(ctx: GameCtx): void;
   deselect(ctx: GameCtx): void;
+  /** Secondary fire (right click), called every frame while the weapon is up. Returns seconds to lock the primary. */
+  alt?(dt: number, ctx: GameCtx, rmb: AltInput): number;
 }

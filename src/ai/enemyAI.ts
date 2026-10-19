@@ -96,12 +96,18 @@ export function updateEnemy(e: Enemy, dt: number, ctx: GameCtx): void {
       }
       // pick movement goal
       let gx: number, gz: number;
-      const direct = e.seesPlayer && dist < 16;
+      const direct = e.seesPlayer && dist < 16 && !ctx.playerHidden;
       if (direct) {
         gx = p.pos.x;
         gz = p.pos.z;
       } else {
-        const n = ctx.nav.next(e.pos.x, e.pos.z);
+        const n = ctx.playerHidden ? null : ctx.nav.next(e.pos.x, e.pos.z);
+        if (ctx.playerHidden && e.lastSeen && Math.hypot(e.lastSeen.x - e.pos.x, e.lastSeen.z - e.pos.z) < 1.5) {
+          // reached the last known spot: search in place
+          e.moving = false;
+          e.yaw += dt * 1.5;
+          break;
+        }
         if (n) {
           [gx, gz] = n;
         } else if (e.lastSeen) {

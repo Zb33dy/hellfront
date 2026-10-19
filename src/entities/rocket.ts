@@ -4,31 +4,60 @@ import type { SpriteBatch } from '../gfx/spriteBatch';
 import { SPRITES } from '../gfx/sprites';
 import type { GameCtx } from '../scenes/context';
 
+export interface RocketOpts {
+  speed?: number;
+  damage?: number;
+  radius?: number;
+  sprite?: string;
+  tint?: [number, number, number];
+  scale?: number;
+  /** Follows the launcher's laser dot while it is on. */
+  guided?: boolean;
+  /** Green hell-fire burst instead of a rocket explosion. */
+  flame?: boolean;
+}
+
 interface Live {
   pos: Vector3;
   dir: Vector3;
   t: number;
   alive: boolean;
+  o: Required<RocketOpts>;
 }
+
+const DEFAULTS: Required<RocketOpts> = { speed: ROCKET.speed, damage: ROCKET.damage, radius: ROCKET.radius, sprite: 'rocket', tint: [1, 1, 1], scale: 1, guided: true, flame: false };
 
 /** Player rockets: fast, straight, explode on the first thing they touch. */
 export class Rockets {
   private list: Live[] = [];
 
-  fire(ctx: GameCtx): void {
+  fire(ctx: GameCtx, opts: RocketOpts = {}): void {
+    const o = { ...DEFAULTS, ...opts };
     const p = ctx.player;
     const f = p.forward;
     const right = new Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw));
-    const r: Live = { pos: p.eye.add(f.scale(0.7)).add(right.scale(0.18)).add(new Vector3(0, -0.12, 0)), dir: f.clone(), t: 0, alive: true };
+    const r: Live = { pos: p.eye.add(f.scale(0.7)).add(right.scale(0.18)).add(new Vector3(0, -0.12, 0)), dir: f.clone(), t: 0, alive: true, o };
     this.list.push(r);
-    ctx.lights.addFx(r.pos, new Color3(1, 0.6, 0.25), 1.8, 7, undefined, () => (r.alive ? r.pos : null));
+    ctx.lights.addFx(r.pos, o.flame ? new Color3(0.3, 1, 0.5) : new Color3(1, 0.6, 0.25), 1.8, 7, undefined, () => (r.alive ? r.pos : null));
   }
 
   update(dt: number, ctx: GameCtx): void {
     for (let i = this.list.length - 1; i >= 0; i--) {
       const r = this.list[i];
       r.t += dt;
-      const len = ROCKET.speed * dt;
+      // laser guidance: turn toward the dot
+      const target = r.o.guided ? ctx.laserPoint : null;
+      if (target) {
+        const want = target.subtract(r.pos);
+        if (want.lengthSquared() > 0.25) {
+          want.normalize();
+          const k = Math.min(1, dt * 6);
+          r.dir.set(r.dir.x + (want.x - r.dir.x) * k, r.dir.y + (want.y - r.dir.y) * k, r.dir.z + (want.z - r.dir.z) * k);
+          if (r.dir.lengthSquared() < 1e-6) r.dir.copyFrom(want);
+          r.dir.normalize();
+        }
+      }
+      const len = r.o.speed * dt;
       // enemies along the step
       let hit: Vector3 | null = null;
       for (const e of ctx.enemies) {
@@ -44,19 +73,31 @@ export class Rockets {
         const h = ctx.world.raycast(r.pos, r.dir, len + 0.2);
         if (h.kind !== 'none' && h.kind !== 'entity') hit = h.point.subtract(r.dir.scale(0.3));
       }
-      if (hit || r.t > 4) {
+      if (hit || r.t > (target ? 7 : 4)) {
         this.list.splice(i, 1);
         r.alive = false;
-        this.explode(hit ?? r.pos, ctx);
+        this.explode(hit ?? r.pos, ctx, r.o);
         continue;
       }
       r.pos.addInPlace(r.dir.scale(len));
+      if (r.o.flame) {
+        if (Math.random() < 0.8) ctx.particles.emit('fire', r.pos, r.dir.scale(-1), 2, 0.3 * r.o.scale, 0.9);
+        continue;
+      }
       if (Math.random() < 0.9) ctx.particles.emit('smoke', r.pos.subtract(r.dir.scale(0.3)), r.dir.scale(-0.5), 1, 0.15, 0.7);
       if (Math.random() < 0.5) ctx.particles.emit('trail', r.pos, r.dir.scale(-0.2), 1, 0.2);
     }
   }
 
-  private explode(pos: Vector3, ctx: GameCtx): void {
+  private explode(pos: Vector3, ctx: GameCtx, o: Required<RocketOpts>): void {
+    if (o.flame) {
+      ctx.sound('barrel_explode', pos, { volume: 1.1, pitch: 1.25 });
+      ctx.particles.emit('fire', pos, new Vector3(0, 1, 0), 30 + Math.floor(o.radius * 6), o.radius * 0.45, 1.3);
+      ctx.lights.addFx(pos.add(new Vector3(0, 0.6, 0)), new Color3(0.3, 1, 0.5), 4, o.radius * 3, 0.4);
+      ctx.radiusDamage(pos, o.radius, o.damage, this);
+      ctx.noise(pos, 22);
+      return;
+    }
     ctx.sound('barrel_explode', pos, { volume: 1.3, pitch: 0.9 });
     ctx.particles.emit('fire', pos, new Vector3(0, 1, 0), 46, 2.4, 1.4);
     ctx.particles.emit('smoke', pos, new Vector3(0, 1, 0), 20, 1.8);
@@ -64,12 +105,12 @@ export class Rockets {
     ctx.lights.addFx(pos.add(new Vector3(0, 0.6, 0)), new Color3(1, 0.6, 0.25), 5, 18, 0.45);
     const d = Vector3.Distance(pos, ctx.player.eye);
     ctx.shake.add(Math.max(0.15, 0.8 - d / 25));
-    ctx.radiusDamage(pos, ROCKET.radius, ROCKET.damage, this);
+    ctx.radiusDamage(pos, o.radius, o.damage, this);
     ctx.noise(pos, 32);
   }
 
   draw(batch: SpriteBatch): void {
-    for (const r of this.list) batch.add(SPRITES['rocket' + (Math.floor(r.t * 20) % 2)], r.pos.x, r.pos.y, r.pos.z, [1, 1, 1], { full: true, scale: 1, depthBias: 0 });
+    for (const r of this.list) batch.add(SPRITES[r.o.sprite + (Math.floor(r.t * 20) % 2)], r.pos.x, r.pos.y, r.pos.z, r.o.tint, { full: true, scale: r.o.scale, depthBias: 0 });
   }
 
   clear(): void {

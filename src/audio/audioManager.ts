@@ -240,9 +240,19 @@ export class AudioManager {
     src.start();
     this.activeCount++;
     let playing = true;
+    const worldSound = bus === this.sfx || bus === this.amb;
+    const stopNow = () => {
+      try {
+        src.stop();
+      } catch {
+        /* already stopped */
+      }
+    };
+    if (worldSound) this.worldSounds.add(stopNow);
     src.onended = () => {
       playing = false;
       this.activeCount--;
+      this.worldSounds.delete(stopNow);
       g.disconnect();
       panner?.disconnect();
     };
@@ -366,6 +376,14 @@ export class AudioManager {
       /* ignore */
     }
     this.narration = null;
+  }
+
+  /** Every sfx/ambience source still playing (level teardown silences them all). */
+  private worldSounds = new Set<() => void>();
+
+  stopWorldSounds(): void {
+    for (const stop of [...this.worldSounds]) stop();
+    this.worldSounds.clear();
   }
 
   stopVoice(): void {

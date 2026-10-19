@@ -284,6 +284,8 @@ export class Game {
     this.ui.subtitles.clear();
     this.clearVoices();
     this.audio.muffle(false);
+    this.audio.music.setPaused(false);
+    this.audio.stopWorldSounds();
     this.ui.loading.show({ title: data.chapter ? `${t('chapter.n', { n: data.chapter })} — ${t(data.titleKey)}` : t(data.titleKey), body: t(data.introKey) + (data.id === 'siege' ? `<br><br>${t('siege.bestLine', { n: siegeBest() })}` : '') });
     await nextFrame();
     this.level?.dispose();
@@ -374,6 +376,7 @@ export class Game {
     this.ui.hud.clickEl.classList.remove('show');
     this.ui.pause.show();
     this.audio.muffle(true);
+    this.audio.music.setPaused(true);
   }
 
   resume(): void {
@@ -382,6 +385,8 @@ export class Game {
     this.ui.pause.hide();
     this.ui.navEnabled = false;
     this.audio.muffle(false);
+    this.audio.music.setPaused(false);
+    this.level?.resetCamera();
     this.state = 'playing';
     void this.lock();
   }
@@ -413,6 +418,8 @@ export class Game {
 
   quitToMenu(): void {
     this.input.releaseLock();
+    this.audio.music.setPaused(false);
+    this.audio.stopWorldSounds();
     this.level?.dispose();
     this.level = null;
     this.clearVoices();

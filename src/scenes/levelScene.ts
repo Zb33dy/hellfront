@@ -45,7 +45,7 @@ import { AbilityController } from './abilities';
 import type { PlayerState } from '../entities/player';
 import { Projectiles } from '../entities/projectile';
 import { Grenades } from '../entities/grenade';
-import { Rockets } from '../entities/rocket';
+import { Rockets, type RocketOpts } from '../entities/rocket';
 import { Barrel, type Prop } from '../entities/barrel';
 import { WeaponSystem } from '../weapons/weaponSystem';
 import type { UIManager } from '../ui/uiManager';
@@ -607,6 +607,8 @@ export class LevelScene implements GameCtx {
       return;
     }
     if (this.godMode) return;
+    // cloaked: monsters cannot hurt you (environmental burns still do)
+    if (this.playerHidden && !(kind === 'blast' && !opts.source && from === p.pos)) return;
     if (this.hitFilter?.(amount, from, kind, opts)) return;
     if (this.ability.id === 'aegis' && this.ability.active && kind !== 'melee' && !opts.unblockable) {
       const to = new Vector3(from.x - p.pos.x, 0, from.z - p.pos.z).normalize();
@@ -885,8 +887,68 @@ export class LevelScene implements GameCtx {
     }
   }
 
-  fireRocket(): void {
-    this.rockets.fire(this);
+  fireRocket(opts?: RocketOpts): void {
+    this.rockets.fire(this, opts);
+  }
+
+  laserOn = false;
+  laserPoint: Vector3 | null = null;
+  private playerBeamFx: { from: Vector3; to: Vector3; t: number } | null = null;
+
+  private updateLaser(): void {
+    if (!this.laserOn || this.weapons.current !== 'launcher' || this.player.dead) {
+      this.laserPoint = null;
+      return;
+    }
+    const h = this.world.raycast(this.player.eye, this.aimDir(), 160, (o, d, maxT) => this.rayEnemies(o, d, maxT));
+    this.laserPoint = h.kind === 'none' ? this.player.eye.add(this.aimDir().scale(160)) : h.point.clone();
+  }
+
+  playerSpin(radius: number, damage: number): number {
+    const p = this.player;
+    let n = 0;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      const dx = e.pos.x - p.pos.x, dz = e.pos.z - p.pos.z;
+      if (Math.hypot(dx, dz) - e.radius > radius) continue;
+      if (Math.abs(e.pos.y - p.pos.y) > 1.8) continue;
+      if (!this.world.los(p.eye, e.eye)) continue;
+      const dir = new Vector3(dx, 0, dz);
+      const at = e.pos.add(new Vector3(0, e.height * 0.5, 0));
+      this.damageEnemy(e, damage * (e.kind === 'pinky' ? 1.5 : 1), dir, 'saw', at);
+      this.particles.emit('blood', at, dir.normalize().add(new Vector3(0, 0.8, 0)), 8, 0.7);
+      n++;
+    }
+    // sparks off nearby walls while the blade sweeps
+    const a = Math.random() * Math.PI * 2;
+    const h = this.world.raycast(p.eye.add(new Vector3(0, -0.4, 0)), new Vector3(Math.sin(a), 0, Math.cos(a)), radius * 0.7);
+    if (h.kind === 'wall') this.particles.emit('sparks', h.point, h.normal, 6, 0.5);
+    return n;
+  }
+
+  playerBeam(damage: number): void {
+    const p = this.player;
+    const eye = p.eye;
+    const f = this.aimDir();
+    const wall = this.world.raycast(eye, f, 150);
+    const maxT = wall.kind === 'none' ? 150 : Vector3.Distance(eye, wall.point);
+    for (const e of this.enemies) {
+      if (!e.solid) continue;
+      const tt = rayCylinder(eye, f, e.pos.x, e.pos.z, e.radius * 1.15, e.pos.y, e.pos.y + e.height, maxT);
+      if (tt === null) continue;
+      const at = eye.add(f.scale(tt));
+      this.damageEnemy(e, damage, f, 'bullet', at);
+      this.particles.emit('gore', at, f.scale(-1).add(new Vector3(0, 0.6, 0)), 14, 0.8);
+    }
+    if (wall.collider?.owner instanceof Barrel) wall.collider.owner.damage(damage, false);
+    if (wall.kind !== 'none') {
+      this.impact(wall, f, true);
+      this.particles.emit('sparks', wall.point, wall.normal, 20, 1.2);
+    }
+    const right = new Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw));
+    const from = eye.add(f.scale(0.9)).add(right.scale(0.15)).add(new Vector3(0, -0.22, 0));
+    this.playerBeamFx = { from, to: eye.add(f.scale(maxT)), t: 0.3 };
+    this.lights.addFx(eye.add(f.scale(Math.min(6, maxT * 0.5))), new Color3(0.4, 0.6, 1), 4, 14, 0.25);
   }
 
   muzzleFlash(big: boolean): void {
@@ -895,6 +957,7 @@ export class LevelScene implements GameCtx {
   }
 
   noise(pos: Vector3, cells: number): void {
+    if (this.playerHidden) return; // gunfire does not give a cloaked marine away
     const fromPlayer = Vector3.DistanceSquared(pos, this.player.pos) < 4;
     if (!fromPlayer) return;
     for (const e of this.enemies) {
@@ -1168,6 +1231,8 @@ export class LevelScene implements GameCtx {
 
     p.update(dt, input, s);
     this.weapons.update(dt, input, this);
+    this.updateLaser();
+    if (this.playerBeamFx && (this.playerBeamFx.t -= dt) <= 0) this.playerBeamFx = null;
 
     // doors: blocked when anything stands in the doorway
     for (const d of this.world.doors) {
@@ -1213,16 +1278,22 @@ export class LevelScene implements GameCtx {
     if (this.data.id === 'battle' && !p.dead && input.pressed('shop')) this.hooks.openBattleMenu();
     this.gunStrikeT -= dt;
     if (this.gunStrikeT <= 0) this.gunStrikeTarget = null;
-    this.ui.hud.prompt(this.gunStrikeTarget ? t('gunstrike.prompt') : this.gloryTarget() ? t('glory.prompt') : this.parryWarning() ? t('parry.prompt') : null);
+    this.ui.hud.prompt(this.ability.slamReady ? t('jump.prompt') : this.gunStrikeTarget ? t('gunstrike.prompt') : this.gloryTarget() ? t('glory.prompt') : this.parryWarning() ? t('parry.prompt') : null);
     this.dashFov = Math.max(0, this.dashFov - dt * 5);
     this.camera.fov = this.baseFov * (1 - 0.72 * this.zoom) * (1 + 0.08 * this.dashFov);
 
     // camera
     const eye = p.eye;
     this.camera.position.copyFrom(eye);
+    // sanitize: any NaN from a degenerate push/normalize must never reach the camera
+    if (!Number.isFinite(p.yaw)) p.yaw = 0;
+    if (!Number.isFinite(p.pitch)) p.pitch = 0;
+    if (!Number.isFinite(p.roll) || (!p.dead && Math.abs(p.roll) > 0.05)) p.roll = 0;
+    if (!Number.isFinite(p.recoil)) p.recoil = 0;
+    if (!Number.isFinite(p.vel.x) || !Number.isFinite(p.vel.y) || !Number.isFinite(p.vel.z)) p.vel.set(0, 0, 0);
     this.camera.rotation.x = p.pitch - p.recoil + this.shake.pitch;
     this.camera.rotation.y = p.yaw + this.shake.yaw;
-    this.camera.rotation.z = p.roll + this.shake.roll;
+    this.camera.rotation.z = (p.dead ? p.roll : 0) + this.shake.roll;
     this.lights.update(dt, eye);
     this.decals.flush();
     const fwd = p.forward;
@@ -1431,6 +1502,29 @@ export class LevelScene implements GameCtx {
       const k = Math.min(2, Math.floor((h.t / h.delay) * 3));
       b.add(SPRITES['erupt' + k], h.pos.x, h.pos.y + 0.25, h.pos.z, [1, 1, 1], { full: true, scale: h.radius * 0.9, depthBias: 0.3 });
     }
+    if (this.laserPoint) {
+      const lp = this.laserPoint;
+      b.add(SPRITES.beamRed, lp.x, lp.y, lp.z, [1.8, 1.8, 1.8], { full: true, scale: 0.7, depthBias: 0.4 });
+      const p = this.player;
+      const right = new Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw));
+      const from = p.eye.add(p.forward.scale(0.8)).add(right.scale(0.2)).add(new Vector3(0, -0.2, 0));
+      const seg = lp.subtract(from);
+      const n = Math.min(110, Math.ceil(seg.length() / 0.7));
+      for (let i = 1; i < n; i++) {
+        const q = from.add(seg.scale(i / n));
+        b.add(SPRITES.beamRed, q.x, q.y, q.z, [1.3, 1.3, 1.3], { full: true, scale: 0.12, depthBias: 0.2 });
+      }
+    }
+    if (this.playerBeamFx) {
+      const fx = this.playerBeamFx;
+      const seg = fx.to.subtract(fx.from);
+      const n = Math.min(160, Math.ceil(seg.length() / 0.5));
+      const w = 0.4 + fx.t * 2.4;
+      for (let i = 0; i <= n; i++) {
+        const q = fx.from.add(seg.scale(i / n));
+        b.add(SPRITES.beam, q.x, q.y, q.z, [1, 1, 1], { full: true, scale: w, depthBias: 0.2 });
+      }
+    }
     this.projectiles.draw(b);
     this.grenades.draw(b, this);
     this.ability.draw(b);
@@ -1478,7 +1572,18 @@ export class LevelScene implements GameCtx {
     this.loops = [];
     this.liftLoops.forEach((l) => l.stop(0.1));
     this.projectiles.clear();
+    this.rockets.clear();
+    this.laserOn = false;
     this.weapons.weapon.deselect(this);
+    this.audio.stopWorldSounds();
+  }
+
+  /** Clears any leftover roll / shake (e.g. after a pause or a menu). */
+  resetCamera(): void {
+    this.player.roll = 0;
+    this.player.recoil = 0;
+    this.shake.reset();
+    this.camera.rotation.z = 0;
   }
 
   dispose(): void {

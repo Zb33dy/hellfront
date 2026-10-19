@@ -132,6 +132,7 @@ export const STORY_EN: Record<string, string> = {
   'act.dash': 'Dash (or double-tap sprint)',
   'glory.prompt': 'E — EXECUTE',
   'gunstrike.prompt': 'E — GUN STRIKE',
+  'jump.prompt': 'Q — SLAM DOWN!',
   'parry.prompt': 'F — PARRY!',
   'style.tag.parry': 'PARRY',
   'act.parry': 'Parry (blue attacks)',
@@ -159,6 +160,7 @@ export const STORY_EN: Record<string, string> = {
   'tip.9': 'Press Q to focus: the world slows down, you do not. The meter refills on its own.',
   'tip.10': 'G throws a frag grenade. Z swaps back to your previous weapon.',
   'tip.11': 'The rifle (4) hits like a truck. Hold the right mouse button to scope in.',
+  'tip.alt': 'Right click is every weapon\'s second mode: burst, double shot, whirlwind, guiding laser, bolt beam, charged fire.',
   'msg.needYellow': 'You need the YELLOW keycard.',
 
   'obj2.forge': 'Descend into the foundry.',
@@ -314,6 +316,7 @@ export const STORY_TR: Record<string, string> = {
   'act.dash': 'Atıl (ya da koşuya çift bas)',
   'glory.prompt': 'E — İNFAZ ET',
   'gunstrike.prompt': 'E — SİLAH DARBESİ',
+  'jump.prompt': 'Q — AŞAĞI ÇAK!',
   'parry.prompt': 'F — SAVUŞTUR!',
   'style.tag.parry': 'SAVUŞTURMA',
   'act.parry': 'Savuştur (mavi saldırılar)',
@@ -341,6 +344,7 @@ export const STORY_TR: Record<string, string> = {
   'tip.9': 'Q ile odaklan: dünya yavaşlar, sen yavaşlamazsın. Gösterge kendiliğinden dolar.',
   'tip.10': 'G el bombası atar. Z bir önceki silahına geri döner.',
   'tip.11': 'Tüfek (4) kamyon gibi vurur. Dürbün için sağ tuşu basılı tut.',
+  'tip.alt': 'Sağ tık her silahın ikinci modu: seri atış, çift atış, kasırga, güdüm lazeri, bolt ışını, şarjlı alev.',
   'msg.needYellow': 'SARI anahtar kart gerekli.',
 
   'obj2.forge': 'Dökümhaneye in.',

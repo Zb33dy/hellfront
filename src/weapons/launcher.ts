@@ -1,6 +1,6 @@
 import { ROCKET } from '../core/config';
 import type { GameCtx } from '../scenes/context';
-import type { Weapon, WeaponFrameState } from './weapon';
+import type { AltInput, Weapon, WeaponFrameState } from './weapon';
 
 /** Rocket launcher: slow, loud, splash damage. Keep your distance. */
 export class Launcher implements Weapon {
@@ -9,6 +9,15 @@ export class Launcher implements Weapon {
   readonly ammoPerShot = 1;
   readonly interval = ROCKET.interval;
   sinceFire = 10;
+
+  /** Right click toggles the guiding laser: rockets in flight steer to the red dot. */
+  alt(_dt: number, ctx: GameCtx, rmb: AltInput): number {
+    if (rmb.pressed) {
+      ctx.laserOn = !ctx.laserOn;
+      ctx.sound('weapon_switch', null, { pitch: ctx.laserOn ? 1.6 : 1.1 });
+    }
+    return 0;
+  }
 
   fire(ctx: GameCtx): void {
     ctx.sound('shotgun_fire', null, { pitch: 0.45, volume: 1.1 });
@@ -31,5 +40,7 @@ export class Launcher implements Weapon {
   }
 
   select(): void {}
-  deselect(): void {}
+  deselect(ctx: GameCtx): void {
+    ctx.laserOn = false;
+  }
 }

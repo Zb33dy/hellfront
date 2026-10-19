@@ -6,6 +6,11 @@ export class ScreenShake {
   pitch = 0;
   roll = 0;
 
+  reset(): void {
+    this.trauma = 0;
+    this.yaw = this.pitch = this.roll = 0;
+  }
+
   add(amount: number): void {
     this.trauma = Math.min(1, this.trauma + amount);
   }
@@ -17,6 +22,6 @@ export class ScreenShake {
     const n = (f: number, o: number) => Math.sin(this.t * f + o) * 0.6 + Math.sin(this.t * f * 2.3 + o * 1.7) * 0.4;
     this.yaw = s * 0.05 * n(31, 1.3);
     this.pitch = s * 0.05 * n(27, 4.1);
-    this.roll = s * 0.06 * n(23, 7.7);
+    this.roll = s * 0.035 * n(23, 7.7);
   }
 }
