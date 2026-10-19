@@ -57,4 +57,10 @@ If you prefer the REST API instead of MCP: put `ELEVENLABS_API_KEY` in `.env` (g
 | Ambience loops (hangar, industrial, nukage, alarm) | generated, 10–12 s seamless |
 | UI (hover, click, back, level-complete sting, secret, radio click) | generated |
 | Voice: 12 of 14 lines | generated |
-| Voice: `v_control`, `v_complete` | **pending** — ElevenLabs disabled the account's free tier mid-session ("unusual activity… upgrade to continue"). They currently play procedural radio chatter with subtitles. Regenerate with the script in `subtitles.ts` and save as `voice/v_control.mp3` / `voice/v_complete.mp3`. |
+| Voice: `v_control`, `v_complete` | done (regenerated after the free-tier hiccup cleared). |
+
+## Campaign voice lines (Chapters 2–5)
+
+All 33 campaign radio lines in `src/audio/voiceLinesCampaign.ts` were generated with the same voice (Jerry B. – Military Commander, `eleven_v4`), one take each, with inline delivery tags (e.g. `[urgent]`, `[grim, slow]`). Files: `src/assets/audio/voice/v2_*.mp3 … v5_*.mp3`.
+
+Post-processing (ffmpeg): trim leading/trailing silence below -50 dB, `loudnorm=I=-16:TP=-1.5:LRA=9`, mono 44.1 kHz 128 kbps. The radio filter is applied at runtime. Any line whose file is missing falls back to procedural radio chatter with subtitles.
